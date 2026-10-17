@@ -26,6 +26,9 @@ main{flex:1;overflow-y:auto;padding:4px 12px 16px}
 .row:active{background:var(--card)}
 .row.on .t{color:var(--yel)}
 .cov{width:46px;height:46px;border-radius:10px;flex:none;display:grid;place-items:center;font-weight:800;font-size:18px;color:#fff;text-shadow:0 1px 2px #0006}
+.cov{overflow:hidden}
+#bigcov{overflow:hidden}
+.cov img,#bigcov img{width:100%;height:100%;object-fit:cover;display:block}
 .meta{flex:1;min-width:0}
 .t{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .a{font-size:13px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -116,6 +119,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:0;border-radiu
 <div id="sheet"><div class="box" id="sbox"></div></div>
 <div id="toast"></div>
 <input type="file" id="file" accept="audio/*" multiple hidden>
+<input type="file" id="imgfile" accept="image/*" hidden>
 <audio id="audio" preload="metadata"></audio>
 
 <script>
@@ -161,11 +165,130 @@ const cover=t=>`background:linear-gradient(135deg,hsl(${hue(t.title)} 65% 42%),h
 const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
 let toastT;const toast=m=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),1800);};
 
+/* ---------- Capas ---------- */
+const covCache=new Map();
+function covURL(t){
+  if(!t.cover)return null;
+  let u=covCache.get(t.id);
+  if(!u||u.b!==t.cover){
+    if(u)URL.revokeObjectURL(u.url);
+    u={b:t.cover,url:URL.createObjectURL(t.cover)};covCache.set(t.id,u);
+  }
+  return u.url;
+}
+function dropCov(id){const u=covCache.get(id);if(u){URL.revokeObjectURL(u.url);covCache.delete(id);}}
+function covInner(t){
+  const u=covURL(t);
+  return u?`<img src="${u}" alt="" decoding="async">`:esc((t.title[0]||'♪').toUpperCase());
+}
+const u32=(d,o)=>((d[o]<<24)|(d[o+1]<<16)|(d[o+2]<<8)|d[o+3])>>>0;
+const ssafe=(d,o)=>((d[o]&127)<<21)|((d[o+1]&127)<<14)|((d[o+2]&127)<<7)|(d[o+3]&127);
+const latin=(d,a,b)=>{let s='';for(let i=a;i<b;i++)s+=String.fromCharCode(d[i]);return s;};
+function sniff(d){
+  if(d[0]===0x89&&d[1]===0x50)return'image/png';
+  if(d[0]===0x47&&d[1]===0x49)return'image/gif';
+  if(d[0]===0x52&&d[1]===0x49)return'image/webp';
+  return'image/jpeg';
+}
+async function id3Cover(file,h){
+  const ver=h[3],flags=h[5],size=ssafe(h,6);
+  const total=Math.min(size+10,file.size,16*1024*1024);
+  const d=new Uint8Array(await file.slice(0,total).arrayBuffer());
+  let p=10;
+  if(flags&0x40)p+=ver===4?ssafe(d,10):u32(d,10)+4;
+  const idLen=ver===2?3:4,hdr=ver===2?6:10;
+  while(p+hdr<=d.length){
+    const id=latin(d,p,p+idLen);
+    if(!/^[A-Z0-9]+$/.test(id))break;
+    let fs;
+    if(ver===2)fs=(d[p+3]<<16)|(d[p+4]<<8)|d[p+5];
+    else if(ver===4)fs=ssafe(d,p+4);
+    else fs=u32(d,p+4);
+    if(!fs)break;
+    const s=p+hdr,e=Math.min(s+fs,d.length);
+    if(id==='APIC'||id==='PIC'){
+      for(let i=s+1;i<e-4;i++){
+        const jpg=d[i]===0xFF&&d[i+1]===0xD8&&d[i+2]===0xFF;
+        const png=d[i]===0x89&&d[i+1]===0x50&&d[i+2]===0x4E&&d[i+3]===0x47;
+        if(jpg||png)return new Blob([d.slice(i,e)],{type:jpg?'image/jpeg':'image/png'});
+      }
+    }
+    p=e;
+  }
+  return null;
+}
+async function flacCover(file){
+  const d=new Uint8Array(await file.slice(0,Math.min(file.size,16*1024*1024)).arrayBuffer());
+  let p=4;
+  while(p+4<=d.length){
+    const last=d[p]&128,type=d[p]&127,len=(d[p+1]<<16)|(d[p+2]<<8)|d[p+3];
+    if(type===6){
+      let o=p+8;o+=4+u32(d,o);o+=4+u32(d,o)+16;
+      const n=u32(d,o);o+=4;
+      const img=d.slice(o,o+n);
+      return new Blob([img],{type:sniff(img)});
+    }
+    p+=4+len;if(last)break;
+  }
+  return null;
+}
+async function mp4Cover(file){
+  const N=3*1024*1024,parts=[new Uint8Array(await file.slice(0,Math.min(N,file.size)).arrayBuffer())];
+  if(file.size>N)parts.push(new Uint8Array(await file.slice(Math.max(N,file.size-N)).arrayBuffer()));
+  for(const d of parts){
+    for(let i=4;i<d.length-24;i++){
+      if(d[i]===0x63&&d[i+1]===0x6F&&d[i+2]===0x76&&d[i+3]===0x72&&latin(d,i+8,i+12)==='data'){
+        const img=d.slice(i+20,Math.min(i+4+u32(d,i+4),d.length));
+        return new Blob([img],{type:sniff(img)});
+      }
+    }
+  }
+  return null;
+}
+async function readCover(file){
+  try{
+    const h=new Uint8Array(await file.slice(0,12).arrayBuffer());
+    if(latin(h,0,3)==='ID3')return await id3Cover(file,h);
+    if(latin(h,0,4)==='fLaC')return await flacCover(file);
+    if(latin(h,4,8)==='ftyp')return await mp4Cover(file);
+  }catch(e){}
+  return null;
+}
+let bf=false;
+async function backfill(){
+  if(bf)return;bf=true;let ch=false;
+  for(const t of tracks.slice()){
+    if(t.coverTried)continue;
+    const cv=await readCover(t.blob);
+    const r=await tx('tracks','readonly',s=>s.get(t.id));
+    if(!r)continue;
+    r.cover=cv;r.coverTried=true;
+    await tx('tracks','readwrite',s=>s.put(r));
+    t.cover=cv;t.coverTried=true;
+    if(cv)ch=true;
+  }
+  bf=false;
+  if(ch)render();
+  if(tracks.some(x=>!x.coverTried))backfill();
+}
+async function setCover(t,b){
+  t.cover=b;t.coverTried=true;dropCov(t.id);
+  await tx('tracks','readwrite',s=>s.put(t));
+  toast(b?'Capa atualizada':'Capa removida');render();
+}
+let coverTarget=null;
+const pickCover=t=>{coverTarget=t;$('#imgfile').click();};
+$('#imgfile').onchange=e=>{
+  const f=e.target.files[0];e.target.value='';
+  if(f&&coverTarget)setCover(coverTarget,f);
+};
+
 async function load(){
   tracks=await tx('tracks','readonly',s=>s.getAll());
   lists=await tx('lists','readonly',s=>s.getAll());
   tracks.sort((a,b)=>b.added-a.added);
   render();
+  backfill();
 }
 
 /* ---------- Importar ---------- */
@@ -176,7 +299,8 @@ $('#file').onchange=async e=>{
     let artist='Artista desconhecido',title=name;
     const i=name.indexOf(' - ');
     if(i>0){artist=name.slice(0,i).trim();title=name.slice(i+3).trim();}
-    const t={id:crypto.randomUUID(),title,artist,blob:f,added:Date.now()+n,fav:false};
+    const cv=await readCover(f);
+    const t={id:crypto.randomUUID(),title,artist,blob:f,added:Date.now()+n,fav:false,cover:cv,coverTried:true};
     await tx('tracks','readwrite',s=>s.put(t));n++;
   }
   e.target.value='';
@@ -196,7 +320,7 @@ function visible(){
 function rowHTML(t){
   const on=cur()&&cur().id===t.id;
   return `<div class="row${on?' on':''}" data-id="${t.id}">
-    <div class="cov" style="${cover(t)}">${esc(t.title[0]||'♪').toUpperCase()}</div>
+    <div class="cov" style="${cover(t)}">${covInner(t)}</div>
     <div class="meta"><div class="t">${esc(t.title)}</div><div class="a">${esc(t.artist)}</div></div>
     <button class="ib${t.fav?' on':''}" data-act="fav">${ic(t.fav?'heart':'heartO',22)}</button>
     <button class="ib" data-act="more">${ic('more',22)}</button></div>`;
@@ -267,6 +391,8 @@ function trackMenu(t){
     {label:'Adicionar a uma lista',fn:()=>pickList(t)}
   ];
   if(view.t==='list')it.push({label:'Remover desta lista',fn:async()=>{const l=lists.find(x=>x.id===view.id);l.ids=l.ids.filter(i=>i!==t.id);await tx('lists','readwrite',s=>s.put(l));render();}});
+  it.push({label:t.cover?'Mudar capa':'Adicionar capa',fn:()=>pickCover(t)});
+  if(t.cover)it.push({label:'Remover capa',fn:()=>setCover(t,null)});
   it.push({label:'Renomear',fn:()=>renameTrack(t)});
   it.push({label:'Apagar da biblioteca',danger:true,fn:()=>delTrack(t)});
   sheet(t.title,it);
@@ -301,6 +427,7 @@ async function delTrack(t){
   const rest=queue.filter(i=>i!==t.id);
   if(playing){queue=rest;if(!queue.length){audio.pause();audio.removeAttribute('src');qi=-1;}else{qi=Math.min(qi,queue.length-1);}}
   else{const c=cur();queue=rest;qi=c?queue.indexOf(c.id):-1;}
+  dropCov(t.id);
   tracks=tracks.filter(x=>x.id!==t.id);
   if(playing&&qi>=0)loadCur();
   render();
@@ -347,7 +474,9 @@ sk.oninput=()=>{seeking=true;$('#tc').textContent=fmt(sk.value/1000*(audio.durat
 sk.onchange=()=>{audio.currentTime=sk.value/1000*(audio.duration||0);seeking=false;};
 function setSession(t){
   if(!('mediaSession'in navigator))return;
-  navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.artist,album:'Batuque'});
+  const cu=covURL(t);
+  navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.artist,album:'Batuque',
+    artwork:cu?[{src:cu,sizes:'512x512',type:t.cover.type||'image/jpeg'}]:[]});
   const h={play:()=>audio.play(),pause:()=>audio.pause(),previoustrack:prev,nexttrack:()=>next(false),
     seekto:e=>{audio.currentTime=e.seekTime;}};
   for(const k in h){try{navigator.mediaSession.setActionHandler(k,h[k]);}catch(e){}}
@@ -359,7 +488,7 @@ function updateUI(){
   mini.classList.toggle('show',!!t);
   $('#fab').classList.toggle('up',!t);
   if(t){
-    mini.innerHTML=`<div class="cov" style="${cover(t)};width:42px;height:42px">${esc(t.title[0]||'♪').toUpperCase()}</div>
+    mini.innerHTML=`<div class="cov" style="${cover(t)};width:42px;height:42px">${covInner(t)}</div>
       <div class="meta" id="mopen"><div class="t">${esc(t.title)}</div><div class="a">${esc(t.artist)}</div></div>
       <button class="ib" id="mprev" style="color:var(--tx)">${ic('prev')}</button>
       <button class="ib" id="mplay" style="color:var(--tx)">${ic(audio.paused?'play':'pause',28)}</button>
@@ -368,7 +497,7 @@ function updateUI(){
     $('#mopen').onclick=openFull;mini.querySelector('.cov').onclick=openFull;
     $('#mplay').onclick=toggle;$('#mnext').onclick=()=>next(false);$('#mprev').onclick=prev;
     $('#ft').textContent=t.title;$('#fa').textContent=t.artist;
-    $('#bigcov').style.cssText=cover(t);$('#bigcov').textContent=(t.title[0]||'♪').toUpperCase();
+    $('#bigcov').style.cssText=cover(t);$('#bigcov').innerHTML=covInner(t);
     $('#ffav').className='ib'+(t.fav?' on':'');$('#ffav').innerHTML=ic(t.fav?'heart':'heartO',28);
     $('#fctx').textContent=ctxName;
   }
