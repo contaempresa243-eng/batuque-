@@ -53,6 +53,11 @@ nav button.on{color:var(--yel)}
 #fab.up{bottom:calc(84px + env(safe-area-inset-bottom))}
 #full{position:fixed;inset:0;background:linear-gradient(180deg,#2a0b10,#0d0d0d 60%);z-index:20;display:none;flex-direction:column;padding:calc(14px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));max-width:640px;margin:auto}
 #full.show{display:flex}
+#full{overflow:hidden}
+#full>*{position:relative;z-index:1}
+#full>#fbg,#full>#fshade{position:absolute;inset:0;z-index:0;pointer-events:none}
+#fbg{background-size:cover;background-position:center;background-repeat:no-repeat;filter:blur(10px) saturate(1.1);transform:scale(1.12)}
+#fshade{background:linear-gradient(180deg,rgba(13,13,13,.30) 0%,rgba(13,13,13,.45) 40%,rgba(13,13,13,.88) 100%)}
 #bigcov{width:min(78vw,340px);aspect-ratio:1;border-radius:20px;margin:auto;display:grid;place-items:center;font-size:96px;font-weight:800;color:#fff;box-shadow:0 20px 50px #000a;text-shadow:0 3px 8px #0006}
 .ft{font-size:22px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fa{color:var(--mut);margin-top:2px}
@@ -95,6 +100,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:0;border-radiu
 </div>
 
 <div id="full">
+  <div id="fbg"></div><div id="fshade"></div>
   <div style="display:flex;justify-content:space-between;align-items:center">
     <button class="ib" id="fclose" style="color:var(--tx)"></button>
     <span style="color:var(--mut);font-size:13px" id="fctx">A tocar</span>
@@ -498,6 +504,8 @@ function updateUI(){
     $('#mplay').onclick=toggle;$('#mnext').onclick=()=>next(false);$('#mprev').onclick=prev;
     $('#ft').textContent=t.title;$('#fa').textContent=t.artist;
     $('#bigcov').style.cssText=cover(t);$('#bigcov').innerHTML=covInner(t);
+    const bu=covURL(t);
+    $('#fbg').style.cssText=bu?`background-image:url("${bu}")`:cover(t);
     $('#ffav').className='ib'+(t.fav?' on':'');$('#ffav').innerHTML=ic(t.fav?'heart':'heartO',28);
     $('#fctx').textContent=ctxName;
   }
