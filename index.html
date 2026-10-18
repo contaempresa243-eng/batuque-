@@ -106,6 +106,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:0;border-radiu
 #sheet button.danger{color:#ff5a6a}
 #toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#fff;color:#111;padding:10px 16px;border-radius:999px;font-size:14px;z-index:40;opacity:0;pointer-events:none;transition:opacity .25s}
 #toast.show{opacity:1}
+#toast{max-width:88vw;text-align:center;line-height:1.35}
 </style>
 </head>
 <body>
@@ -202,7 +203,7 @@ const cur=()=>byId(queue[qi]);
 const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h;};
 const cover=t=>`background:linear-gradient(135deg,hsl(${hue(t.title)} 65% 42%),hsl(${(hue(t.title)+50)%360} 70% 28%))`;
 const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
-let toastT;const toast=m=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),1800);};
+let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Capas ---------- */
 const covCache=new Map();
@@ -510,14 +511,27 @@ function sheet(title,items){
 }
 const closeSheet=()=>$('#sheet').classList.remove('show');
 $('#sheet').onclick=e=>{if(e.target.id==='sheet')closeSheet();};
-function trackMenu(t){
-  const it=[
-    {label:'Tocar a seguir',fn:()=>{if(qi<0){play([t.id],0);}else{queue.splice(qi+1,0,t.id);toast('Vai tocar a seguir');}}},
-    {label:'Adicionar a uma lista',fn:()=>pickList(t)}
-  ];
-  if(view.t==='list')it.push({label:'Remover desta lista',fn:async()=>{const l=lists.find(x=>x.id===view.id);l.ids=l.ids.filter(i=>i!==t.id);await tx('lists','readwrite',s=>s.put(l));render();}});
-  it.push({label:t.cover?'Mudar capa':'Adicionar capa',fn:()=>pickCover(t)});
-  if(t.cover)it.push({label:'Remover capa',fn:()=>setCover(t,null)});
+/* full=false: menu das linhas da biblioteca · full=true: menu do ecrã completo */
+function trackMenu(t,full){
+  const rmList={label:'Remover desta lista',fn:async()=>{const l=lists.find(x=>x.id===view.id);l.ids=l.ids.filter(i=>i!==t.id);await tx('lists','readwrite',s=>s.put(l));render();}};
+  let it;
+  if(full){
+    it=[
+      {label:'Tocar a seguir',fn:()=>{if(qi<0){play([t.id],0);}else{queue.splice(qi+1,0,t.id);toast('Vai tocar a seguir');}}},
+      {label:'Adicionar a uma lista',fn:()=>pickList(t)}
+    ];
+    if(view.t==='list')it.push(rmList);
+    it.push({label:t.cover?'Mudar capa':'Adicionar capa',fn:()=>pickCover(t)});
+    if(t.cover)it.push({label:'Remover capa',fn:()=>setCover(t,null)});
+  }else{
+    it=[
+      {label:'Enviar',fn:()=>shareTrack(t)},
+      {label:'Definir como toque',fn:()=>ringtoneTrack(t)},
+      {label:t.fav?'Remover dos favoritos':'Adicionar aos favoritos',fn:async()=>{await toggleFav(t);toast(t.fav?'Adicionada aos favoritos':'Removida dos favoritos');}},
+      {label:'Adicionar a uma lista',fn:()=>pickList(t)}
+    ];
+    if(view.t==='list')it.push(rmList);
+  }
   it.push({label:'Renomear',fn:()=>renameTrack(t)});
   it.push({label:'Apagar da biblioteca',danger:true,fn:()=>delTrack(t)});
   sheet(t.title,it);
@@ -675,6 +689,18 @@ async function shareTrack(t){
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   toast('A guardar o ficheiro…');
 }
+/* Um site não pode mudar o toque do sistema: guarda o ficheiro e explica como o escolher. */
+function ringtoneTrack(t){
+  if(!t)return;
+  const type=t.blob.type||'audio/mpeg';
+  const ext=(t.blob.name&&t.blob.name.includes('.'))?t.blob.name.split('.').pop():(type.split('/')[1]||'mp3').replace('mpeg','mp3');
+  const name=(t.artist+' - '+t.title).replace(/[\\/:*?"<>|]/g,'')+'.'+ext;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(t.blob);a.download=name;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
+  toast('Ficheiro guardado em Transferências. Em Definições › Som › Toque, escolhe-o na lista.',7000);
+}
 function openQueue(){
   syncQueue();
   if(!queue.length){toast('Nada a tocar');return;}
@@ -757,7 +783,7 @@ function updateUI(){
 }
 function openFull(){$('#full').classList.add('show');}
 $('#fclose').onclick=()=>$('#full').classList.remove('show');
-$('#fmore').onclick=()=>{const t=cur();if(t)trackMenu(t);};
+$('#fmore').onclick=()=>{const t=cur();if(t)trackMenu(t,true);};
 $('#ffav').onclick=()=>{const t=cur();if(t)toggleFav(t);};
 $('#bplay').onclick=toggle;$('#bnext').onclick=()=>next(false);$('#bprev').onclick=prev;
 $('#bshuf').onclick=()=>{shuffle=!shuffle;toast(shuffle?'Aleatório ligado':'Aleatório desligado');updateUI();};
