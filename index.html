@@ -21,10 +21,15 @@ h1 b{color:var(--yel)}
 .bar{height:3px;width:56px;border-radius:3px;background:linear-gradient(90deg,var(--red) 50%,var(--yel) 50%);margin:6px 0 10px}
 .search{width:100%;background:var(--card);border:1px solid #2a2a2a;border-radius:999px;padding:11px 16px;color:var(--tx);font-size:15px;outline:none}
 .search:focus{border-color:var(--yel)}
-main{flex:1;overflow-y:auto;padding:4px 12px 16px}
-.row{display:flex;align-items:center;gap:12px;padding:9px 6px;border-radius:12px}
+main{flex:1;overflow-y:auto;padding:4px 12px 90px}
+.row{display:flex;align-items:center;gap:10px;padding:9px 4px;border-radius:12px}
 .row:active{background:var(--card)}
 .row.on .t{color:var(--yel)}
+.n{min-width:22px;flex:none;text-align:center;font-size:13px;color:var(--mut);font-variant-numeric:tabular-nums}
+.row.on .n{color:var(--yel)}
+.rt{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:48px;font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
+.rt span:first-child{color:var(--tx);opacity:.85}
+.row .ib{padding:6px}
 .cov{width:46px;height:46px;border-radius:10px;flex:none;display:grid;place-items:center;font-weight:800;font-size:18px;color:#fff;text-shadow:0 1px 2px #0006}
 .cov{overflow:hidden}
 #bigcov{overflow:hidden}
@@ -43,14 +48,21 @@ main{flex:1;overflow-y:auto;padding:4px 12px 16px}
 .head2 h2{flex:1;font-size:19px}
 .lcard{display:flex;align-items:center;gap:12px;padding:12px;background:var(--card);border-radius:var(--r);margin-bottom:8px}
 .lcard .cov{background:linear-gradient(135deg,var(--red),#7a0a17)}
-#mini{display:none;align-items:center;gap:10px;margin:0 8px 6px;padding:8px 10px;background:var(--card2);border-radius:var(--r);position:relative;overflow:hidden}
+#mini{display:none;align-items:center;gap:6px;width:min(264px,calc(100vw - 16px));padding:6px 8px;background:rgba(34,34,34,.97);border:1px solid #333;border-radius:16px;position:fixed;left:8px;top:0;z-index:15;overflow:hidden;box-shadow:0 8px 24px #000a;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+#mini.drag{cursor:grabbing;box-shadow:0 14px 34px #000c;transform:scale(1.03)}
+#mini .cov{width:36px;height:36px;border-radius:8px;font-size:15px}
+#mini .t{font-size:13px}
+#mini .a{font-size:12px}
+#mini .ib{padding:6px}
+#mini .ib svg{width:22px;height:22px}
+#mini #mplay svg{width:26px;height:26px}
 #mini.show{display:flex}
 #mini .prog{position:absolute;left:0;bottom:0;height:2px;background:var(--yel);width:0}
 nav{display:flex;border-top:1px solid #222;padding-bottom:env(safe-area-inset-bottom);background:var(--bg)}
 nav button{flex:1;padding:10px 0 8px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--mut)}
 nav button.on{color:var(--yel)}
-#fab{position:absolute;right:18px;bottom:calc(150px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;background:var(--red);display:grid;place-items:center;box-shadow:0 6px 18px #000a;color:#fff;z-index:5}
-#fab.up{bottom:calc(84px + env(safe-area-inset-bottom))}
+#fab{position:absolute;right:16px;bottom:calc(76px + env(safe-area-inset-bottom));width:44px;height:44px;border-radius:50%;background:var(--red);display:grid;place-items:center;box-shadow:0 6px 18px #000a;color:#fff;z-index:5}
+#fab.up{bottom:calc(76px + env(safe-area-inset-bottom))}
 #full{position:fixed;inset:0;background:linear-gradient(180deg,#2a0b10,#0d0d0d 60%);z-index:20;display:none;flex-direction:column;padding:calc(14px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));max-width:640px;margin:auto}
 #full.show{display:flex}
 #full{overflow:hidden}
@@ -340,27 +352,50 @@ async function readTags(file){
   return out;
 }
 const readCover=async f=>(await readTags(f)).cover;
+const fmtSize=b=>b>=1048576?(b/1048576).toFixed(1).replace('.',',')+' MB':Math.max(1,Math.round(b/1024))+' KB';
+function getDur(blob){
+  return new Promise(res=>{
+    const a=new Audio(),u=URL.createObjectURL(blob);
+    let done=false;
+    const end=v=>{
+      if(done)return;done=true;
+      URL.revokeObjectURL(u);a.removeAttribute('src');a.load();
+      res(isFinite(v)?Math.round(v):0);
+    };
+    a.preload='metadata';
+    a.onloadedmetadata=()=>end(a.duration);
+    a.onerror=()=>end(0);
+    setTimeout(()=>end(0),8000);
+    a.src=u;
+  });
+}
 let bf=false;
 async function backfill(){
-  if(bf)return;bf=true;let ch=false;
+  if(bf)return;bf=true;let ch=false,k=0;
   for(const t of tracks.slice()){
-    if(t.coverTried&&t.metaTried)continue;
-    const tg=await readTags(t.blob);
+    const needTags=!(t.coverTried&&t.metaTried),needDur=t.dur===undefined;
+    if(!needTags&&!needDur)continue;
+    const tg=needTags?await readTags(t.blob):null;
+    const dur=needDur?await getDur(t.blob):0;
     const r=await tx('tracks','readonly',s=>s.get(t.id));
-    if(!r){t.coverTried=t.metaTried=true;continue;}
-    if(!r.coverTried){r.cover=tg.cover;r.coverTried=true;if(tg.cover)ch=true;}
-    if(!r.metaTried){
-      const nm=parseName(r.blob&&r.blob.name);
-      if(tg.artist&&r.artist==='Artista desconhecido'){r.artist=tg.artist;ch=true;}
-      if(tg.title&&nm.title&&r.title===nm.title){r.title=tg.title;ch=true;}
-      r.metaTried=true;
+    if(!r){t.coverTried=t.metaTried=true;t.dur=0;continue;}
+    if(tg){
+      if(!r.coverTried){r.cover=tg.cover;r.coverTried=true;if(tg.cover)ch=true;}
+      if(!r.metaTried){
+        const nm=parseName(r.blob&&r.blob.name);
+        if(tg.artist&&r.artist==='Artista desconhecido'){r.artist=tg.artist;ch=true;}
+        if(tg.title&&nm.title&&r.title===nm.title){r.title=tg.title;ch=true;}
+        r.metaTried=true;
+      }
     }
+    if(r.dur===undefined){r.dur=dur;if(dur)ch=true;}
     await tx('tracks','readwrite',s=>s.put(r));
-    t.cover=r.cover;t.artist=r.artist;t.title=r.title;t.coverTried=true;t.metaTried=true;
+    t.cover=r.cover;t.artist=r.artist;t.title=r.title;t.dur=r.dur;t.coverTried=true;t.metaTried=true;
+    if(ch&&++k%6===0)render();
   }
   bf=false;
   if(ch){render();if(cur())setSession(cur());}
-  if(tracks.some(x=>!(x.coverTried&&x.metaTried)))backfill();
+  if(tracks.some(x=>!(x.coverTried&&x.metaTried)||x.dur===undefined))backfill();
 }
 async function setCover(t,b){
   t.cover=b;t.coverTried=true;dropCov(t.id);
@@ -404,11 +439,13 @@ function visible(){
   const q=search.toLowerCase();
   return q?arr.filter(t=>(t.title+' '+t.artist).toLowerCase().includes(q)):arr;
 }
-function rowHTML(t){
+function rowHTML(t,i){
   const on=cur()&&cur().id===t.id;
   return `<div class="row${on?' on':''}" data-id="${t.id}">
+    <span class="n">${i+1}</span>
     <div class="cov" style="${cover(t)}">${covInner(t)}</div>
     <div class="meta"><div class="t">${esc(t.title)}</div><div class="a">${esc(t.artist)}</div></div>
+    <div class="rt"><span>${t.dur?fmt(t.dur):'--:--'}</span><span>${fmtSize(t.blob.size)}</span></div>
     <button class="ib${t.fav?' on':''}" data-act="fav">${ic(t.fav?'heart':'heartO',22)}</button>
     <button class="ib" data-act="more">${ic('more',22)}</button></div>`;
 }
@@ -641,19 +678,62 @@ function openQueue(){
   if(b){b.style.color='var(--yel)';b.scrollIntoView({block:'center'});}
 }
 
+/* ---------- Mini player móvel ---------- */
+let miniPos=null;
+try{miniPos=JSON.parse(localStorage.getItem('batuque_mini'));}catch(e){}
+function placeMini(){
+  const m=$('#mini');
+  if(!m.classList.contains('show'))return;
+  const w=m.offsetWidth,h=m.offsetHeight,W=innerWidth,H=innerHeight;
+  let x=8,y=H-h-88;
+  if(miniPos&&isFinite(miniPos.x)&&isFinite(miniPos.y)){x=miniPos.x*(W-w);y=miniPos.y*(H-h);}
+  m.style.left=Math.min(Math.max(0,x),Math.max(0,W-w))+'px';
+  m.style.top=Math.min(Math.max(0,y),Math.max(0,H-h))+'px';
+}
+addEventListener('resize',placeMini);
+(function(){
+  const m=$('#mini');
+  let pid=null,sx=0,sy=0,ox=0,oy=0,moved=false;
+  m.addEventListener('pointerdown',e=>{
+    if(e.target.closest('button'))return;
+    pid=e.pointerId;sx=e.clientX;sy=e.clientY;ox=m.offsetLeft;oy=m.offsetTop;moved=false;
+    try{m.setPointerCapture(pid);}catch(x){}
+  });
+  m.addEventListener('pointermove',e=>{
+    if(e.pointerId!==pid)return;
+    const dx=e.clientX-sx,dy=e.clientY-sy;
+    if(!moved&&Math.hypot(dx,dy)<6)return;
+    moved=true;m.classList.add('drag');
+    const w=m.offsetWidth,h=m.offsetHeight;
+    m.style.left=Math.min(Math.max(0,ox+dx),Math.max(0,innerWidth-w))+'px';
+    m.style.top=Math.min(Math.max(0,oy+dy),Math.max(0,innerHeight-h))+'px';
+  });
+  const end=e=>{
+    if(e.pointerId!==pid)return;
+    pid=null;m.classList.remove('drag');
+    if(moved){
+      const w=m.offsetWidth,h=m.offsetHeight;
+      miniPos={x:m.offsetLeft/((innerWidth-w)||1),y:m.offsetTop/((innerHeight-h)||1)};
+      try{localStorage.setItem('batuque_mini',JSON.stringify(miniPos));}catch(x){}
+    }else if(e.type==='pointerup')openFull();
+  };
+  m.addEventListener('pointerup',end);
+  m.addEventListener('pointercancel',end);
+})();
+
 /* ---------- UI do leitor ---------- */
 function updateUI(){
   const t=cur(),mini=$('#mini');
   mini.classList.toggle('show',!!t);
   $('#fab').classList.toggle('up',!t);
   if(t){
-    mini.innerHTML=`<div class="cov" style="${cover(t)};width:42px;height:42px">${covInner(t)}</div>
+    mini.innerHTML=`<div class="cov" style="${cover(t)}">${covInner(t)}</div>
       <div class="meta" id="mopen"><div class="t">${esc(t.title)}</div><div class="a">${esc(t.artist)}</div></div>
       <button class="ib" id="mprev" style="color:var(--tx)">${ic('prev')}</button>
-      <button class="ib" id="mplay" style="color:var(--tx)">${ic(audio.paused?'play':'pause',28)}</button>
+      <button class="ib" id="mplay" style="color:var(--tx)">${ic(audio.paused?'play':'pause')}</button>
       <button class="ib" id="mnext" style="color:var(--tx)">${ic('next')}</button>
       <div class="prog" id="mprog"></div>`;
-    $('#mopen').onclick=openFull;mini.querySelector('.cov').onclick=openFull;
+    if(!mini.classList.contains('drag'))placeMini();
     $('#mplay').onclick=toggle;$('#mnext').onclick=()=>next(false);$('#mprev').onclick=prev;
     $('#ft').textContent=t.title;$('#fa').textContent=t.artist;
     $('#bigcov').style.cssText=cover(t);$('#bigcov').innerHTML=covInner(t);
@@ -680,7 +760,7 @@ $('#teq').onclick=openEQ;
 $('#tcover').onclick=()=>{const t=cur();if(t)pickCover(t);};
 $('#tqueue').onclick=openQueue;
 $('#bshuf').innerHTML=ic('shuf');$('#bprev').innerHTML=ic('prev');$('#bnext').innerHTML=ic('next');
-$('#fab').innerHTML=ic('plus',28);
+$('#fab').innerHTML=ic('plus',22);
 const NAV={lib:['music','Músicas'],fav:['heart','Favoritos'],lists:['list','Listas']};
 document.querySelectorAll('nav button').forEach(b=>{const[i,l]=NAV[b.dataset.v];b.innerHTML=ic(i)+'<span>'+l+'</span>';});
 
