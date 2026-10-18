@@ -195,7 +195,7 @@ const tx=(st,mode,fn)=>DB.then(d=>new Promise((res,rej)=>{
 
 /* ---------- Estado ---------- */
 let tracks=[],lists=[],view={t:'lib'},search='';
-let queue=[],qi=-1,shuffle=false,repeat=0,curUrl=null,ctxName='A tocar';
+let queue=[],qi=-1,shuffle=false,repeat=0,curUrl=null,ctxName='A tocar',qctx=null;
 const audio=$('#audio');
 const byId=id=>tracks.find(t=>t.id===id);
 const cur=()=>byId(queue[qi]);
@@ -413,6 +413,7 @@ async function load(){
   tracks=await tx('tracks','readonly',s=>s.getAll());
   lists=await tx('lists','readonly',s=>s.getAll());
   tracks.sort((a,b)=>b.added-a.added);
+  syncQueue();
   render();
   backfill();
 }
@@ -483,7 +484,7 @@ function render(){
   const nl=$('#newlist');if(nl)nl.onclick=newList;
   const lb=$('#lback');if(lb)lb.onclick=()=>{view={t:'lists'};render();};
   const lm=$('#lmore');if(lm)lm.onclick=listMenu;
-  const pa=$('#playall');if(pa)pa.onclick=()=>{const a=visible();if(a.length)play(a.map(t=>t.id),0,$('#main h2')?.textContent);};
+  const pa=$('#playall');if(pa)pa.onclick=()=>{const a=visible();if(a.length)play(a.map(t=>t.id),0,$('#main h2')?.textContent,{k:'list',id:view.id,f:false});};
   updateUI();
 }
 $('#main').addEventListener('click',e=>{
@@ -494,7 +495,7 @@ $('#main').addEventListener('click',e=>{
   if(act==='fav'){toggleFav(t);return;}
   if(act==='more'){trackMenu(t);return;}
   const arr=visible().map(x=>x.id);
-  play(arr,arr.indexOf(id),view.t==='fav'?'Favoritos':view.t==='list'?(lists.find(l=>l.id===view.id)||{}).name:'Biblioteca');
+  play(arr,arr.indexOf(id),view.t==='fav'?'Favoritos':view.t==='list'?(lists.find(l=>l.id===view.id)||{}).name:'Biblioteca',{k:view.t,id:view.id,f:!!search});
 });
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{view={t:b.dataset.v};search='';$('#q').value='';render();$('#main').scrollTop=0;});
 $('#q').oninput=e=>{search=e.target.value.trim();render();};
@@ -559,7 +560,14 @@ async function delTrack(t){
 async function toggleFav(t){t.fav=!t.fav;await tx('tracks','readwrite',s=>s.put(t));render();}
 
 /* ---------- Leitor ---------- */
-function play(ids,i,name){queue=ids.slice();qi=i;ctxName=name||'A tocar';loadCur();}
+function play(ids,i,name,ctx){queue=ids.slice();qi=i;ctxName=name||'A tocar';qctx=ctx||null;loadCur();}
+function syncQueue(){
+  if(!qctx||qctx.k!=='lib'||qctx.f)return;
+  const c=cur();if(!c)return;
+  const ids=tracks.map(t=>t.id),i=ids.indexOf(c.id);
+  if(i<0)return;
+  queue=ids;qi=i;
+}
 function loadCur(){
   const t=cur();if(!t)return;
   if(curUrl)URL.revokeObjectURL(curUrl);
@@ -668,6 +676,7 @@ async function shareTrack(t){
   toast('A guardar o ficheiro…');
 }
 function openQueue(){
+  syncQueue();
   if(!queue.length){toast('Nada a tocar');return;}
   const items=queue.map((id,i)=>{
     const t=byId(id)||{title:'?',artist:''};
