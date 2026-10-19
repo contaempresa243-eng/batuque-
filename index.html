@@ -43,6 +43,10 @@ main{flex:1;overflow-y:auto;padding:4px 12px 90px}
 .ib:active{background:var(--card2)}
 .empty{text-align:center;color:var(--mut);padding:60px 24px;line-height:1.6}
 .empty svg{width:56px;height:56px;margin:0 auto 12px;opacity:.4}
+.empty .drums{display:flex;justify-content:center;align-items:flex-end;gap:2px;margin-top:26px}
+.empty .drums svg{width:96px;height:auto;margin:0;opacity:1;filter:drop-shadow(0 8px 10px #0006)}
+.empty .drums svg:first-child{transform:rotate(-6deg) translateX(6px)}
+.empty .drums svg:last-child{transform:rotate(6deg) translateX(-6px)}
 .btn{background:var(--red);color:#fff;padding:12px 22px;border-radius:999px;font-weight:700;margin-top:16px}
 .btn.alt{background:var(--card2);color:var(--tx)}
 .head2{display:flex;align-items:center;gap:8px;padding:6px 0 10px}
@@ -318,7 +322,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.1.2';
+const APP_VERSION='1.1.1';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Para receber o feedback por email, escreve aqui o teu endereço (fica visível no código da página). */
 const FEEDBACK_EMAIL='infoangomusic9@gmail.com';
@@ -715,6 +719,23 @@ function visible(){
   arr=ordered(arr);
   return q?arr.filter(t=>(t.title+' '+t.artist).toLowerCase().includes(q)):arr;
 }
+/* dois batuques (ilustração do estado vazio) */
+function drumsSVG(){
+  const d=(id)=>`<svg viewBox="0 0 100 132" aria-hidden="true"><defs>
+    <linearGradient id="db${id}" x1="0" x2="1"><stop offset="0" stop-color="#7d0a1a"/><stop offset=".45" stop-color="#d1122a"/><stop offset="1" stop-color="#6a0816"/></linearGradient>
+    <radialGradient id="ds${id}" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#f4e3bd"/><stop offset="1" stop-color="#c9a66a"/></radialGradient></defs>
+    <path d="M14 20C14 52 30 62 34 80C37 94 31 112 26 124L74 124C69 112 63 94 66 80C70 62 86 52 86 20Z" fill="url(#db${id})"/>
+    <path d="M26 124L74 124 72 129C60 132 40 132 28 129Z" fill="#4a0510"/>
+    <path d="M21 34L36 60 50 32 64 60 79 34" fill="none" stroke="#ffc400" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M22 44L37 68 50 42 63 68 78 44" fill="none" stroke="#ffc400" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" opacity=".55"/>
+    <path d="M31 96h38l-1.6 8H32.6z" fill="#ffc400"/>
+    <path d="M30 106h40" stroke="#ffc400" stroke-width="2.5" stroke-dasharray="4 3"/>
+    <ellipse cx="50" cy="20" rx="36" ry="10" fill="#3b0a10"/>
+    <ellipse cx="50" cy="18.5" rx="34" ry="8.5" fill="url(#ds${id})"/>
+    <ellipse cx="50" cy="18.5" rx="34" ry="8.5" fill="none" stroke="#ffc400" stroke-width="2"/>
+  </svg>`;
+  return `<div class="drums">${d(1)}${d(2)}</div>`;
+}
 function gridHTML(t){
   const on=cur()&&cur().id===t.id,s=sel&&sel.has(t.id);
   return `<div class="row g${on?' on':''}${s?' sel':''}" data-id="${t.id}">
@@ -759,7 +780,7 @@ function render(){
     }else if(view.t==='fav')h+=`<div class="head2"><h2>Favoritos</h2></div>`;
     const arr=visible();
     if(!arr.length){
-      if(view.t==='lib'&&!tracks.length)h+=`<div class="empty">${ic('music')}A tua biblioteca está vazia.<br>Adiciona músicas do telemóvel para começar.<br><button class="btn" id="addbtn">Adicionar músicas</button></div>`;
+      if(view.t==='lib'&&!tracks.length)h+=`<div class="empty">${ic('music')}A tua biblioteca está vazia.<br>Toca no <b style="color:var(--yel)">+</b> para adicionar músicas do telemóvel.${drumsSVG()}</div>`;
       else h+=`<div class="empty">${ic(view.t==='fav'?'heart':'music')}${search?'Nada encontrado.':view.t==='fav'?'Toca no coração para guardar favoritos.':'Esta lista está vazia.'}</div>`;
     }else{
       if(view.t==='list'&&!search)h+=`<button class="btn" id="playall" style="margin:0 0 8px">▶ Tocar tudo</button>`;
@@ -767,7 +788,6 @@ function render(){
     }
   }
   m.innerHTML=h;
-  const ab=$('#addbtn');if(ab)ab.onclick=pickFiles;
   const nl=$('#newlist');if(nl)nl.onclick=newList;
   const lb=$('#lback');if(lb)lb.onclick=()=>{view={t:'lists'};render();};
   const lm=$('#lmore');if(lm)lm.onclick=listMenu;
