@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0d0d0d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Batuque</title>
@@ -1183,17 +1186,21 @@ $('#fab').innerHTML=ic('plus',22);
 const NAV={lib:['music','Músicas'],fav:['heart','Favoritos'],lists:['list','Listas']};
 document.querySelectorAll('nav button').forEach(b=>{const[i,l]=NAV[b.dataset.v];b.innerHTML=ic(i)+'<span>'+l+'</span>';});
 
-/* ---------- PWA (manifest embutido) ---------- */
+/* ---------- PWA / offline ---------- */
 (function(){
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#0d0d0d"/><rect y="440" width="256" height="24" fill="#ce1126"/><rect x="256" y="440" width="256" height="24" fill="#ffcb05"/><path fill="#ffcb05" d="M300 110v200a64 64 0 1 1-30-54V160h110v-50z"/></svg>`;
-  const icon='data:image/svg+xml,'+encodeURIComponent(svg);
-  const man={name:'Batuque',short_name:'Batuque',start_url:'.',display:'standalone',background_color:'#0d0d0d',theme_color:'#0d0d0d',
-    icons:[{src:icon,sizes:'512x512',type:'image/svg+xml',purpose:'any'}]};
-  const l=document.createElement('link');l.rel='manifest';
-  l.href=URL.createObjectURL(new Blob([JSON.stringify(man)],{type:'application/manifest+json'}));
-  document.head.appendChild(l);
-  const a=document.createElement('link');a.rel='apple-touch-icon';a.href=icon;document.head.appendChild(a);
   if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+  if(!('serviceWorker' in navigator)||!/^https?:$/.test(location.protocol))return;
+  const first=!navigator.serviceWorker.controller;
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      const w=reg.installing||reg.waiting;
+      const done=()=>{if(first)toast('Pronto para funcionar sem internet',3200);};
+      if(w){w.addEventListener('statechange',()=>{if(w.state==='activated')done();});}
+      else if(reg.active&&first)done();
+    }).catch(()=>{});
+  });
+  const off=()=>toast('Sem internet · a app continua a funcionar',2500);
+  window.addEventListener('offline',off);
 })();
 
 load();
