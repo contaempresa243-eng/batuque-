@@ -158,6 +158,18 @@ button.srow:active{background:var(--card2)}
 #sheet textarea{display:block;width:calc(100% - 28px);margin:6px 14px;min-height:110px;background:var(--card2);color:var(--tx);border:1px solid var(--bd);border-radius:12px;padding:12px;font:inherit;font-size:15px;resize:vertical;outline:none}
 #sheet textarea:focus{border-color:var(--yel)}
 #sheet .box.qbox{max-height:46dvh}
+.tact{display:flex;gap:2px;margin:-8px -6px -8px 0}
+.tact .ib{color:var(--tx);padding:8px}
+.tact .ib.on{color:var(--yel)}
+#main .gl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 10px;padding-top:2px}
+.row.g{flex-direction:column;align-items:stretch;gap:6px;padding:6px;position:relative}
+.row.g .cov{width:100%;height:auto;aspect-ratio:1;border-radius:12px;font-size:34px}
+.row.g .meta{flex:none;text-align:left;padding:0 2px}
+.row.g .t{font-size:13px}.row.g .a{font-size:12px}
+.row.g .gm{position:absolute;top:10px;right:10px;background:#000a;color:#fff;border-radius:50%;padding:3px;display:grid;place-items:center}
+.row.g .gm svg{width:20px;height:20px}
+.row.g .chk{position:absolute;top:12px;left:12px;background:#000a;border-color:#fff;z-index:1}
+.row.g.sel .chk{background:var(--yel);border-color:var(--yel)}
 .row{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 header{position:relative}
 #selbar{display:none;position:absolute;left:0;right:0;bottom:8px;top:calc(14px + env(safe-area-inset-top));align-items:center;gap:6px;padding:0 10px 0 8px}
@@ -181,7 +193,7 @@ header{position:relative}
 <div id="bgimg"></div>
 <div id="app">
   <header>
-    <div class="top"><h1>Batu<b>que</b></h1></div>
+    <div class="top"><h1>Batu<b>que</b></h1><div class="tact"><button class="ib" id="gridb" aria-label="Modo grelha"></button><button class="ib" id="sortb" aria-label="Organizar"></button></div></div>
     <div class="bar"></div>
     <input id="q" class="search" type="search" placeholder="Pesquisar músicas ou artistas…">
     <div id="selbar"><button class="ib" id="selx" aria-label="Cancelar seleção"></button><span id="selc"></span><button id="sela">Todas</button><button id="seld" aria-label="Apagar selecionadas"></button></div>
@@ -260,6 +272,8 @@ down:'M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z',
 trash:'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z',
 close:'M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z',
 check:'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z',
+grid:'M3 3v8h8V3H3zm6 6H5V5h4v4zm-6 4v8h8v-8H3zm6 6H5v-4h4v4zm4-16v8h8V3h-8zm6 6h-4V5h4v4zm-6 4v8h8v-8h-8zm6 6h-4v-4h4v4z',
+sort:'M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z',
 back:'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z',
 chev:'M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z',
 palette:'M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z',
@@ -284,7 +298,16 @@ const tx=(st,mode,fn)=>DB.then(d=>new Promise((res,rej)=>{
 }));
 
 /* ---------- Estado ---------- */
-let tracks=[],lists=[],view={t:'lib'},search='',sel=null,lpFired=false;
+let tracks=[],lists=[],view={t:'lib'},search='',sel=null,lpFired=false,sortK=null,grid=false;
+try{const v=JSON.parse(localStorage.getItem('batuque_view')||'{}');sortK=v.s||null;grid=!!v.g;}catch(e){}
+const saveView=()=>{try{localStorage.setItem('batuque_view',JSON.stringify({s:sortK,g:grid}));}catch(e){}};
+const SORTS={az:'A – Z',za:'Z – A',sup:'Tamanho: crescente',sdn:'Tamanho: decrescente',new:'Mais recentes',old:'Mais antigas'};
+function ordered(arr){
+  if(!sortK)return arr;
+  const c=(a,b)=>(a||'').localeCompare(b||'','pt',{sensitivity:'base',numeric:true});
+  const f={az:(a,b)=>c(a.title,b.title),za:(a,b)=>c(b.title,a.title),sup:(a,b)=>a.blob.size-b.blob.size,sdn:(a,b)=>b.blob.size-a.blob.size,new:(a,b)=>b.added-a.added,old:(a,b)=>a.added-b.added}[sortK];
+  return f?arr.slice().sort(f):arr;
+}
 let queue=[],qi=-1,shuffle=false,repeat=0,curUrl=null,ctxName='A tocar',qctx=null;
 const audio=$('#audio');
 const byId=id=>tracks.find(t=>t.id===id);
@@ -295,7 +318,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.1.2';
+const APP_VERSION='1.1.1';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Para receber o feedback por email, escreve aqui o teu endereço (fica visível no código da página). */
 const FEEDBACK_EMAIL='infoangomusic9@gmail.com';
@@ -689,9 +712,18 @@ function visible(){
   else if(view.t==='list'){const l=lists.find(x=>x.id===view.id);arr=(l?l.ids:[]).map(byId).filter(Boolean);}
   else arr=tracks;
   const q=search.toLowerCase();
+  arr=ordered(arr);
   return q?arr.filter(t=>(t.title+' '+t.artist).toLowerCase().includes(q)):arr;
 }
+function gridHTML(t){
+  const on=cur()&&cur().id===t.id,s=sel&&sel.has(t.id);
+  return `<div class="row g${on?' on':''}${s?' sel':''}" data-id="${t.id}">
+    ${sel?`<span class="chk">${ic('check')}</span>`:`<button class="ib gm" data-act="more" aria-label="Mais">${ic('more')}</button>`}
+    <div class="cov" style="${cover(t)}">${covInner(t)}</div>
+    <div class="meta"><div class="t">${esc(t.title)}</div><div class="a">${esc(t.artist)}</div></div></div>`;
+}
 function rowHTML(t,i){
+  if(grid)return gridHTML(t);
   const on=cur()&&cur().id===t.id;
   const s=sel&&sel.has(t.id);
   return `<div class="row${on?' on':''}${s?' sel':''}" data-id="${t.id}">
@@ -708,6 +740,9 @@ function render(){
     const v=b.dataset.v;b.classList.toggle('on',v===view.t||(v==='lists'&&view.t==='list'));
   });
   $('#fab').style.display=(view.t==='lists')?'none':'grid';
+  $('.tact').style.display=(view.t==='lists')?'none':'flex';
+  $('#gridb').innerHTML=ic(grid?'list':'grid',24);$('#gridb').classList.toggle('on',grid);
+  $('#sortb').innerHTML=ic('sort',24);$('#sortb').classList.toggle('on',!!sortK);
   $('#fab').classList.toggle('up',!$('#mini').classList.contains('show'));
   if(view.t==='lists'){
     h+=`<div class="head2"><h2>As tuas listas</h2><button class="btn alt" id="newlist" style="margin:0;padding:9px 16px">+ Nova</button></div>`;
@@ -728,7 +763,7 @@ function render(){
       else h+=`<div class="empty">${ic(view.t==='fav'?'heart':'music')}${search?'Nada encontrado.':view.t==='fav'?'Toca no coração para guardar favoritos.':'Esta lista está vazia.'}</div>`;
     }else{
       if(view.t==='list'&&!search)h+=`<button class="btn" id="playall" style="margin:0 0 8px">▶ Tocar tudo</button>`;
-      h+=arr.map(rowHTML).join('');
+      h+=grid?'<div class="gl">'+arr.map(gridHTML).join('')+'</div>':arr.map(rowHTML).join('');
     }
   }
   m.innerHTML=h;
@@ -754,6 +789,12 @@ $('#main').addEventListener('click',e=>{
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{endSel(true);view={t:b.dataset.v};search='';$('#q').value='';render();$('#main').scrollTop=0;});
 $('#q').oninput=e=>{search=e.target.value.trim();render();};
 $('#fab').onclick=pickFiles;
+$('#gridb').onclick=()=>{grid=!grid;saveView();render();toast(grid?'Modo grelha':'Modo lista',1200);};
+$('#sortb').onclick=()=>{
+  const it=Object.keys(SORTS).map(k=>({label:(sortK===k?'✓ ':'')+SORTS[k],fn:()=>{sortK=k;saveView();syncQueue();render();$('#main').scrollTop=0;}}));
+  it.push({label:'Repor',fn:()=>{sortK=null;saveView();syncQueue();render();$('#main').scrollTop=0;}});
+  sheet('Organizar',it);
+};
 
 /* ---------- Seleção múltipla ---------- */
 function selUI(){
@@ -899,7 +940,7 @@ function play(ids,i,name,ctx){queue=ids.slice();qi=i;ctxName=name||'A tocar';qct
 function syncQueue(){
   if(!qctx||qctx.k!=='lib'||qctx.f)return;
   const c=cur();if(!c)return;
-  const ids=tracks.map(t=>t.id),i=ids.indexOf(c.id);
+  const ids=ordered(tracks).map(t=>t.id),i=ids.indexOf(c.id);
   if(i<0)return;
   queue=ids;qi=i;
 }
