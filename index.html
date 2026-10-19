@@ -157,6 +157,8 @@ button.srow:active{background:var(--card2)}
 .gal .gb .btn{flex:1;margin:0;padding:11px;font-size:14px}
 #sheet textarea{display:block;width:calc(100% - 28px);margin:6px 14px;min-height:110px;background:var(--card2);color:var(--tx);border:1px solid var(--bd);border-radius:12px;padding:12px;font:inherit;font-size:15px;resize:vertical;outline:none}
 #sheet textarea:focus{border-color:var(--yel)}
+#sheet .box.qbox{max-height:46dvh}
+#sheet .box.qbox button{padding:10px 14px;font-size:15px}
 #sheet .btn{text-align:center;margin:10px 14px 0;width:calc(100% - 28px);border-radius:999px;font-weight:700;padding:13px}
 </style>
 </head>
@@ -428,6 +430,7 @@ $('#sset').addEventListener('click',async e=>{
   else if(d.act==='bgpick')$('#bgfile').click();
   else if(d.act==='bgrm'){removeBg();renderSettings();}
 });
+$('#sback').innerHTML=ic('back');
 $('#sback').innerHTML=ic('back');
 $('#sback').onclick=()=>{if(sv==='theme'){sv='main';renderSettings();$('#sset').scrollTop=0;}else closeSettings();};
 $('#bgfile').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(f&&await setBgFromFile(f))renderSettings();};
@@ -737,7 +740,7 @@ function sheet(title,items){
   b.onclick=e=>{const x=e.target.closest('button');if(!x)return;closeSheet();items[+x.dataset.i].fn();};
   $('#sheet').classList.add('show');
 }
-const closeSheet=()=>$('#sheet').classList.remove('show');
+const closeSheet=()=>{$('#sheet').classList.remove('show');$('#sbox').classList.remove('qbox');};
 $('#sheet').onclick=e=>{if(e.target.id==='sheet')closeSheet();};
 /* full=false: menu das linhas da biblioteca · full=true: menu do ecrã completo */
 function trackMenu(t,full){
@@ -938,6 +941,7 @@ function openQueue(){
     return{label:(i===qi?'▶ ':'')+(i+1)+'. '+t.title+(t.artist?' — '+t.artist:''),fn:()=>{qi=i;loadCur();}};
   });
   sheet(ctxName+' · '+queue.length+(queue.length===1?' música':' músicas'),items);
+  $('#sbox').classList.add('qbox');
   const b=$('#sbox').querySelector(`button[data-i="${qi}"]`);
   if(b){b.style.color='var(--yel)';b.scrollIntoView({block:'center'});}
 }
