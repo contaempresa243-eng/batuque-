@@ -389,7 +389,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.1.5';
+const APP_VERSION='1.1.6';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Para receber o feedback por email, escreve aqui o teu endereço (fica visível no código da página). */
 const FEEDBACK_EMAIL='infoangomusic9@gmail.com';
@@ -421,6 +421,7 @@ function applyTheme(){
   $('#full').dataset.card=CFG.card;
   const mt=document.querySelector('meta[name=theme-color]');if(mt)mt.content=m==='light'?'#f4f4f6':'#0d0d0d';
   applyBg();
+  clearTimeout(window.__artT);window.__artT=setTimeout(()=>{try{if(cur())setSession(cur());}catch(e){}},200);
 }
 if(mq){const f=()=>{if(CFG.mode==='auto'){applyTheme();if($('#settings').classList.contains('show'))renderSettings();}};mq.addEventListener?mq.addEventListener('change',f):mq.addListener&&mq.addListener(f);}
 
@@ -482,6 +483,20 @@ function fsRestore(){
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)fsRestore();});
 window.addEventListener('pageshow',fsRestore);
 fsRestore();
+
+/* Instalar app: instalada, a notificação de música mostra "Batuque" em vez de "Chrome" */
+let dip=null;
+const isInstalled=()=>{try{return matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches||!!navigator.standalone;}catch(e){return false;}};
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;});
+window.addEventListener('appinstalled',()=>{dip=null;toast('Batuque instalada',2500);if($('#settings').classList.contains('show')&&sv==='main')renderSettings();});
+async function installApp(){
+  if(isInstalled()){toast('A app já está instalada');return;}
+  if(dip){
+    try{dip.prompt();const r=await dip.userChoice;dip=null;if(r&&r.outcome==='accepted')toast('A instalar…',2500);}catch(e){}
+    return;
+  }
+  alert('Para instalar: abre o menu ⋮ do Chrome e escolhe "Instalar app" (ou "Adicionar ao ecrã inicial").');
+}
 
 /* Atualizar app */
 async function checkUpdate(){
@@ -546,6 +561,7 @@ function renderSettings(){
     <div class="srow"><span class="si">${ic('contrast')}</span><span class="st"><b>Aparência</b><small>Escuro, claro ou predefinido (segue o sistema)</small></span><div class="seg">${modes.map(([k,n])=>`<button data-mode="${k}" class="${CFG.mode===k?'on':''}">${n}</button>`).join('')}</div></div>
     <button class="srow" data-act="fs"><span class="si">${ic('fullscreen')}</span><span class="st"><b>Modo ecrã cheio</b><small>Esconde a barra do navegador</small></span><span class="sw${fsWant()||fsOn()?' on':''}"></span></button>
     <div class="sgroup">Sobre a app</div>
+    <button class="srow" data-act="install"><span class="si">${ic('plus')}</span><span class="st"><b>${isInstalled()?'App instalada':'Instalar app'}</b><small>${isInstalled()?'A notificação mostra o nome Batuque':'Notificação com o nome Batuque e ícone no ecrã inicial'}</small></span>${isInstalled()?'':ic('chev')}</button>
     <button class="srow" data-act="update"><span class="si">${ic('refresh')}</span><span class="st"><b>Atualizar app</b><small>Versão ${APP_VERSION} · procurar atualizações</small></span>${ic('chev')}</button>
     <button class="srow" data-act="feedback"><span class="si">${ic('feedback')}</span><span class="st"><b>Feedback</b><small>Envia uma sugestão ou reporta um problema</small></span>${ic('chev')}</button>
     <div class="srow"><span class="si">${ic('event')}</span><span class="st"><b>Criado em</b><small>${APP_INFO.place} · ${APP_INFO.created}</small></span></div>`;
@@ -563,6 +579,7 @@ $('#sset').addEventListener('click',async e=>{
   if(d.card){CFG.card=d.card;saveCfg();applyTheme();renderSettings();return;}
   if(d.act==='fs')toggleFS();
   else if(d.act==='update')checkUpdate();
+  else if(d.act==='install')installApp();
   else if(d.act==='feedback')openFeedback();
   else if(d.act==='bgpick')$('#bgfile').click();
   else if(d.act==='bgrm'){removeBg();renderSettings();}
@@ -880,8 +897,7 @@ function visible(){
   return q?arr.filter(t=>(t.title+' '+t.artist).toLowerCase().includes(q)):arr;
 }
 /* dois batuques (ilustração do estado vazio) */
-function drumsSVG(){
-  const d=(id)=>`<svg viewBox="0 0 100 132" aria-hidden="true"><defs>
+const drumSVG=(id,attrs)=>`<svg ${attrs||''} viewBox="0 0 100 132" aria-hidden="true"><defs>
     <linearGradient id="db${id}" x1="0" x2="1"><stop offset="0" stop-color="#7d0a1a"/><stop offset=".45" stop-color="#d1122a"/><stop offset="1" stop-color="#6a0816"/></linearGradient>
     <radialGradient id="ds${id}" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#f4e3bd"/><stop offset="1" stop-color="#c9a66a"/></radialGradient></defs>
     <path d="M14 20C14 52 30 62 34 80C37 94 31 112 26 124L74 124C69 112 63 94 66 80C70 62 86 52 86 20Z" fill="url(#db${id})"/>
@@ -894,6 +910,8 @@ function drumsSVG(){
     <ellipse cx="50" cy="18.5" rx="34" ry="8.5" fill="url(#ds${id})"/>
     <ellipse cx="50" cy="18.5" rx="34" ry="8.5" fill="none" stroke="#ffc400" stroke-width="2"/>
   </svg>`;
+function drumsSVG(){
+  const d=drumSVG;
   return `<div class="drums">${d(1)}${d(2)}</div>`;
 }
 function gridHTML(t){
@@ -1189,9 +1207,9 @@ function next(auto){
   else{audio.pause();audio.currentTime=0;updateUI();return;}
   loadCur();
 }
-function prev(){
+function prev(force){
   if(!queue.length)return;
-  if(audio.currentTime>3){audio.currentTime=0;return;}
+  if(!force&&audio.currentTime>3){audio.currentTime=0;return;}
   qi=qi>0?qi-1:queue.length-1;loadCur();
 }
 const toggle=()=>{if(qi<0)return;audio.paused?audio.play():audio.pause();};
@@ -1202,20 +1220,92 @@ audio.ontimeupdate=()=>{
   if(!seeking)$('#seek').value=d?c/d*1000:0;
   $('#tc').textContent=fmt(c);$('#td').textContent=fmt(d);
   $('#mprog').style.width=d?(c/d*100)+'%':'0';
-  if('mediaSession'in navigator&&d&&isFinite(d)){try{navigator.mediaSession.setPositionState({duration:d,position:Math.min(c,d),playbackRate:1});}catch(e){}}
+  syncPos();
 };
+let posT=0;
+function syncPos(force){
+  if(!('mediaSession'in navigator)||!navigator.mediaSession.setPositionState)return;
+  const now=Date.now();
+  if(force!==true&&now-posT<1000)return;
+  const d=audio.duration;
+  if(!d||!isFinite(d))return;
+  posT=now;
+  try{navigator.mediaSession.setPositionState({duration:d,position:Math.max(0,Math.min(audio.currentTime||0,d)),playbackRate:audio.playbackRate||1});}catch(e){}
+}
+['loadedmetadata','durationchange','play','pause','seeked','ratechange','playing'].forEach(n=>audio.addEventListener(n,()=>syncPos(true)));
 let seeking=false;
 const sk=$('#seek');
 sk.oninput=()=>{seeking=true;$('#tc').textContent=fmt(sk.value/1000*(audio.duration||0));};
 sk.onchange=()=>{audio.currentTime=sk.value/1000*(audio.duration||0);seeking=false;};
-function setSession(t){
+/* ---------- Notificação / ecrã bloqueado (Media Session) ---------- */
+let artKey='',artUrl='',sesTok=0;
+const loadSvgImg=svg=>new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);});
+/* imagem QUADRADA 512×512 com as cores do tema escolhido na app.
+   O Android tira a cor do cartão da notificação a partir desta imagem. */
+async function makeArt(t){
+  const P=PALS.find(p=>p.id===CFG.pal)||PALS[0],light=effMode()==='light',S=512;
+  const c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,S,S);
+  if(light){g.addColorStop(0,P.p);g.addColorStop(1,P.pl);}else{g.addColorStop(0,P.t);g.addColorStop(1,P.a);}
+  x.fillStyle=g;x.fillRect(0,0,S,S);
+  let drew=false;
+  if(t.cover){
+    try{
+      const im=await loadImg(t.cover),w=im.naturalWidth,h=im.naturalHeight,m=Math.min(w,h);
+      x.drawImage(im,(w-m)/2,(h-m)/2,m,m,0,0,S,S);   /* capa quadrada, sem moldura */
+      drew=true;
+    }catch(e){}
+  }
+  if(!drew){
+    try{
+      const d1=await loadSvgImg(drumSVG(1,'xmlns="http://www.w3.org/2000/svg" width="200" height="264"'));
+      const d2=await loadSvgImg(drumSVG(2,'xmlns="http://www.w3.org/2000/svg" width="200" height="264"'));
+      x.drawImage(d1,48,92,200,264);x.drawImage(d2,264,92,200,264);
+    }catch(e){}
+  }
+  /* faixa inferior com a cor do tema (também dá a cor à notificação quando a capa é neutra) */
+  const band=x.createLinearGradient(0,S*.72,0,S);
+  band.addColorStop(0,'rgba(0,0,0,0)');band.addColorStop(1,light?P.pl:P.a);
+  x.fillStyle=band;x.fillRect(0,S*.72,S,S*.28);
+  x.fillStyle=light?P.a:P.p;x.fillRect(0,S-14,S,14);
+  return await new Promise(r=>c.toBlob(r,'image/jpeg',.92));
+}
+async function artFor(t){
+  const key=t.id+'|'+CFG.pal+'|'+effMode()+'|'+(t.cover?t.cover.size:0);
+  if(key===artKey&&artUrl)return artUrl;
+  const b=await makeArt(t);if(!b)return null;
+  const old=artUrl;artUrl=URL.createObjectURL(b);artKey=key;
+  if(old)setTimeout(()=>URL.revokeObjectURL(old),8000);
+  return artUrl;
+}
+function msHandlers(){
   if(!('mediaSession'in navigator))return;
-  const cu=covURL(t);
-  navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.artist,album:'Batuque',
-    artwork:cu?[{src:cu,sizes:'512x512',type:t.cover.type||'image/jpeg'}]:[]});
-  const h={play:()=>audio.play(),pause:()=>audio.pause(),previoustrack:prev,nexttrack:()=>next(false),
-    seekto:e=>{audio.currentTime=e.seekTime;}};
+  const h={play:()=>audio.play(),pause:()=>audio.pause(),stop:()=>audio.pause(),
+    previoustrack:()=>prev(true),nexttrack:()=>next(false),
+    seekto:e=>{if(e&&isFinite(e.seekTime)){audio.currentTime=e.seekTime;syncPos(true);}},
+    seekbackward:null,seekforward:null};
   for(const k in h){try{navigator.mediaSession.setActionHandler(k,h[k]);}catch(e){}}
+}
+const msMeta=(t,src,type)=>{
+  try{
+    navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.artist,album:'Batuque',
+      artwork:src?[96,192,256,384,512].map(z=>({src,sizes:z+'x'+z,type:type||'image/jpeg'})):[]});
+  }catch(e){}
+};
+async function setSession(t){
+  if(!('mediaSession'in navigator)||!t)return;
+  const tok=++sesTok;let url=null;
+  msHandlers();                                  /* botões ⏮ ⏭ ▶ ⏸ e barra de progresso ativos já */
+  msMeta(t,artUrl||'');                          /* título/artista trocam logo, sem esperar pela imagem */
+  navigator.mediaSession.playbackState=audio.paused?'paused':'playing';
+  syncPos(true);
+  try{url=await artFor(t);}catch(e){}
+  if(tok!==sesTok)return;
+  const fb=covURL(t);
+  const src=url||fb;
+  msMeta(t,src,url?'image/jpeg':(t.cover&&t.cover.type)||'image/jpeg');
+  navigator.mediaSession.playbackState=audio.paused?'paused':'playing';
+  syncPos(true);
 }
 
 /* ---------- Equalizador (Web Audio) ---------- */
@@ -1375,7 +1465,7 @@ function openFull(){$('#full').classList.add('show');}
 $('#fclose').onclick=()=>$('#full').classList.remove('show');
 $('#fmore').onclick=()=>{const t=cur();if(t)trackMenu(t,true);};
 $('#ffav').onclick=()=>{const t=cur();if(t)toggleFav(t);};
-$('#bplay').onclick=toggle;$('#bnext').onclick=()=>next(false);$('#bprev').onclick=prev;
+$('#bplay').onclick=toggle;$('#bnext').onclick=()=>next(false);$('#bprev').onclick=()=>prev();
 $('#bshuf').onclick=()=>{shuffle=!shuffle;toast(shuffle?'Aleatório ligado':'Aleatório desligado');updateUI();};
 $('#brep').onclick=()=>{repeat=(repeat+1)%3;toast(['Repetir desligado','Repetir tudo','Repetir uma'][repeat]);updateUI();};
 $('#fclose').innerHTML=ic('down');$('#fmore').innerHTML=ic('more');
