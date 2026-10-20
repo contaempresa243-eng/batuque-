@@ -325,7 +325,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.1.2';
+const APP_VERSION='1.1.1';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Para receber o feedback por email, escreve aqui o teu endereço (fica visível no código da página). */
 const FEEDBACK_EMAIL='infoangomusic9@gmail.com';
@@ -380,20 +380,44 @@ async function setBgFromFile(file){
 }
 function removeBg(){try{localStorage.removeItem(BG_KEY);}catch(e){}applyBg();toast('Imagem de fundo removida');}
 
-/* Modo ecrã cheio */
+/* Modo ecrã cheio
+   O navegador cancela o ecrã cheio sozinho (ecrã bloqueado, mudar de app, gesto de voltar,
+   recarregar). Por isso guardamos a escolha (FS_KEY) e voltamos a entrar no próximo toque. */
+const FS_KEY='batuque_fs';
 const fsOn=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
+const fsWant=()=>{try{return localStorage.getItem(FS_KEY)==='1';}catch(e){return false;}};
+const fsSet=v=>{try{if(v)localStorage.setItem(FS_KEY,'1');else localStorage.removeItem(FS_KEY);}catch(e){}};
+const fsReq=()=>{const el=document.documentElement,f=el.requestFullscreen||el.webkitRequestFullscreen;return f?f.call(el):Promise.reject();};
 async function toggleFS(){
-  const el=document.documentElement;
   try{
-    if(fsOn()){await (document.exitFullscreen||document.webkitExitFullscreen).call(document);}
-    else{
-      const f=el.requestFullscreen||el.webkitRequestFullscreen;
-      if(!f){toast('O teu navegador não suporta o modo ecrã cheio');return;}
-      await f.call(el);
+    if(fsWant()||fsOn()){
+      fsSet(false);
+      if(fsOn())await (document.exitFullscreen||document.webkitExitFullscreen).call(document);
+    }else{
+      if(!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen)){toast('O teu navegador não suporta o modo ecrã cheio');return;}
+      await fsReq();fsSet(true);
     }
   }catch(e){toast('Não foi possível mudar o modo ecrã cheio');}
+  if($('#settings').classList.contains('show')&&sv==='main')renderSettings();
 }
-['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{if($('#settings').classList.contains('show')&&sv==='main')renderSettings();}));
+/* volta a entrar em ecrã cheio no próximo toque, se o utilizador o tinha ligado */
+function fsRestore(){
+  if(!fsWant()||fsOn())return;
+  const go=()=>{
+    if(!fsWant()||fsOn()){off();return;}
+    fsReq().then(off).catch(()=>{});
+  };
+  const evs=['pointerup','touchend','click'];
+  const off=()=>evs.forEach(e=>document.removeEventListener(e,go,true));
+  evs.forEach(e=>document.addEventListener(e,go,true));
+}
+['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{
+  if(!fsOn())fsRestore();
+  if($('#settings').classList.contains('show')&&sv==='main')renderSettings();
+}));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)fsRestore();});
+window.addEventListener('pageshow',fsRestore);
+fsRestore();
 
 /* Atualizar app */
 async function checkUpdate(){
@@ -456,7 +480,7 @@ function renderSettings(){
     h+=`<div class="sgroup">Ecrã</div>
     <button class="srow" data-go="theme"><span class="si">${ic('palette')}</span><span class="st"><b>Tema</b><small>Paleta de cores, galeria e estilo do cartão</small></span>${ic('chev')}</button>
     <div class="srow"><span class="si">${ic('contrast')}</span><span class="st"><b>Aparência</b><small>Escuro, claro ou predefinido (segue o sistema)</small></span><div class="seg">${modes.map(([k,n])=>`<button data-mode="${k}" class="${CFG.mode===k?'on':''}">${n}</button>`).join('')}</div></div>
-    <button class="srow" data-act="fs"><span class="si">${ic('fullscreen')}</span><span class="st"><b>Modo ecrã cheio</b><small>Esconde a barra do navegador</small></span><span class="sw${fsOn()?' on':''}"></span></button>
+    <button class="srow" data-act="fs"><span class="si">${ic('fullscreen')}</span><span class="st"><b>Modo ecrã cheio</b><small>Esconde a barra do navegador</small></span><span class="sw${fsWant()||fsOn()?' on':''}"></span></button>
     <div class="sgroup">Sobre a app</div>
     <button class="srow" data-act="update"><span class="si">${ic('refresh')}</span><span class="st"><b>Atualizar app</b><small>Versão ${APP_VERSION} · procurar atualizações</small></span>${ic('chev')}</button>
     <button class="srow" data-act="feedback"><span class="si">${ic('feedback')}</span><span class="st"><b>Feedback</b><small>Envia uma sugestão ou reporta um problema</small></span>${ic('chev')}</button>
