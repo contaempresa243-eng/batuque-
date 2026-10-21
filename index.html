@@ -1263,11 +1263,7 @@ async function makeArt(t){
       x.drawImage(d1,48,92,200,264);x.drawImage(d2,264,92,200,264);
     }catch(e){}
   }
-  /* faixa inferior com a cor do tema (também dá a cor à notificação quando a capa é neutra) */
-  const band=x.createLinearGradient(0,S*.72,0,S);
-  band.addColorStop(0,'rgba(0,0,0,0)');band.addColorStop(1,light?P.pl:P.a);
-  x.fillStyle=band;x.fillRect(0,S*.72,S,S*.28);
-  x.fillStyle=light?P.a:P.p;x.fillRect(0,S-14,S,14);
+  /* sem faixas nem molduras: alguns telemóveis cortam a capa em círculo e a faixa ficaria como um arco */
   return await new Promise(r=>c.toBlob(r,'image/jpeg',.92));
 }
 async function artFor(t){
