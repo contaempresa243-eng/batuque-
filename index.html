@@ -37,7 +37,7 @@ main{flex:1;overflow-y:auto;padding:4px 12px 90px}
 .cov{width:46px;height:46px;border-radius:10px;flex:none;display:grid;place-items:center;font-weight:800;font-size:18px;color:#fff;text-shadow:0 1px 2px #0006}
 .cov{overflow:hidden}
 #bigcov{overflow:hidden}
-#viz{display:block;flex:none;width:100%;height:64px;margin:10px 0 4px;pointer-events:none}
+#viz{display:block;flex:none;width:100%;height:56px;margin:10px 0 4px;pointer-events:none}
 .cov img,#bigcov img{width:100%;height:100%;object-fit:cover;display:block}
 .meta{flex:1;min-width:0}
 .t{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -392,7 +392,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.3.1';
+const APP_VERSION='1.3.2';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Para receber o feedback por email, escreve aqui o teu endereço (fica visível no código da página). */
 const FEEDBACK_EMAIL='infoangomusic9@gmail.com';
@@ -1325,8 +1325,8 @@ try{localStorage.removeItem('batuque_np');}catch(e){}
 if('serviceWorker'in navigator){navigator.serviceWorker.getRegistration().then(r=>r&&r.getNotifications({tag:'batuque-np'}).then(l=>l.forEach(n=>n.close()))).catch(()=>{});}
 
 
-/* ---------- Visualizador (barras que vibram com a música) ---------- */
-const vz=$('#viz'),VN=31;let vzLevels=new Array(VN).fill(0),vzRaf=0,vzData=null,vzT=0;
+/* ---------- Visualizador (corrente elétrica que reage à música) ---------- */
+const vz=$('#viz'),VN=24;let vzLevels=new Array(VN).fill(0),vzRaf=0,vzData=null,vzT=0;
 function vzSize(){
   const r=vz.getBoundingClientRect(),d=Math.min(window.devicePixelRatio||1,2);
   const w=Math.round(r.width*d),h=Math.round(r.height*d);
@@ -1357,15 +1357,25 @@ function vzFrame(){
     vzLevels[i]+=(v-vzLevels[i])*k;
   }
   c.clearRect(0,0,W,H);
-  const gap=W/VN,bw=gap*.56,mid=H/2,col=getComputedStyle($('#full')).getPropertyValue('--yel').trim()||'#ffcb05';
-  c.fillStyle=col;
-  for(let i=0;i<VN;i++){
-    const h=Math.max(bw,vzLevels[i]*(H-4)),x=i*gap+(gap-bw)/2;
-    c.globalAlpha=.55+.45*vzLevels[i];
-    c.beginPath();
-    if(c.roundRect)c.roundRect(x,mid-h/2,bw,h,bw/2);else c.rect(x,mid-h/2,bw,h);
-    c.fill();
+  /* corrente elétrica: linha fina em zigue-zague, com faíscas que crescem com a música */
+  const col=getComputedStyle($('#full')).getPropertyValue('--yel').trim()||'#ffcb05',mid=H/2,d=W/312;
+  const PN=VN*2;
+  const pts=[];
+  let tot=0;for(let i=0;i<VN;i++)tot+=vzLevels[i];
+  const pw=Math.min(1,tot/VN*2.2);
+  for(let j=0;j<=PN;j++){
+    const x=j/PN,f=x*(VN-1),i0=Math.floor(f),i1=Math.min(VN-1,i0+1),lv=vzLevels[i0]+(vzLevels[i1]-vzLevels[i0])*(f-i0);
+    const env=Math.sin(Math.PI*x)**.6;
+    const amp=(.06+.94*Math.max(lv,pw*.35))*env*(H/2-3);
+    const jit=(Math.random()*2-1)*amp*(j===0||j===PN?0:1);
+    pts.push([x*W,mid+jit+Math.sin(vzT*3+j*.8)*amp*.12]);
   }
+  const path=()=>{c.beginPath();pts.forEach((q,j)=>j?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]));};
+  c.lineJoin='round';c.lineCap='round';
+  c.shadowColor=col;c.shadowBlur=14*d;
+  c.strokeStyle=col;c.globalAlpha=.35+.4*pw;c.lineWidth=3.2*d;path();c.stroke();
+  c.shadowBlur=6*d;c.globalAlpha=1;c.lineWidth=1.3*d;path();c.stroke();
+  c.shadowBlur=0;c.strokeStyle='#fff';c.globalAlpha=.55+.4*pw;c.lineWidth=.6*d;path();c.stroke();
   c.globalAlpha=1;
   if(playing||vzLevels.some(l=>l>.02))vzRaf=requestAnimationFrame(vzFrame);
 }
