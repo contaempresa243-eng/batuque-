@@ -112,6 +112,26 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:0;border-radiu
 .ctl svg{width:30px;height:30px}
 .pp{background:var(--yel);color:var(--onp)!important;border-radius:50%!important;padding:16px!important}
 .pp svg{width:34px;height:34px}
+
+#dlg{position:fixed;inset:0;background:#000b;z-index:60;display:flex;align-items:center;justify-content:center;padding:24px;animation:dlgf .16s ease-out}
+#dlg .dbox{position:relative;width:100%;max-width:340px;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:22px;padding:22px 20px 16px;box-shadow:0 18px 50px #000b;overflow:hidden;animation:dlgp .18s ease-out}
+#dlg .dbox::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,var(--red) 50%,var(--yel) 50%)}
+#dlg .dhead{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+#dlg .dico{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--card2);color:var(--yel)}
+#dlg .dico svg{width:22px;height:22px}
+#dlg.danger .dico{color:var(--danger)}
+#dlg h2{font-size:18px;line-height:1.2;margin:0}
+#dlg p{margin:0 0 14px;font-size:14.5px;line-height:1.45;color:var(--mut);white-space:pre-line;word-break:break-word}
+#dlg input{display:block;width:100%;margin:0 0 14px;padding:12px 14px;background:var(--card2);color:var(--tx);border:1.5px solid var(--bd);border-radius:12px;font:inherit;font-size:16px;outline:none}
+#dlg input:focus{border-color:var(--yel)}
+#dlg .dbtn{display:flex;gap:10px;justify-content:flex-end}
+#dlg .dbtn button{min-width:96px;padding:11px 18px;border-radius:12px;font-size:15px;font-weight:600;background:var(--card2);color:var(--tx)}
+#dlg .dbtn button.ok{background:var(--yel);color:var(--onp)}
+#dlg.danger .dbtn button.ok{background:var(--danger);color:#fff}
+#dlg .dbtn button{outline:none}
+#dlg .dbtn button:active{transform:scale(.97)}
+@keyframes dlgf{from{opacity:0}to{opacity:1}}
+@keyframes dlgp{from{transform:translateY(10px) scale(.96);opacity:0}to{transform:none;opacity:1}}
 #sheet{position:fixed;inset:0;background:#000a;z-index:30;display:none;align-items:flex-end;justify-content:center}
 #sheet.show{display:flex}
 #sheet .box{background:var(--card);width:100%;max-width:640px;border-radius:20px 20px 0 0;padding:12px 8px calc(12px + env(safe-area-inset-bottom));max-height:52dvh;overflow:auto}
@@ -398,7 +418,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.3.6';
+const APP_VERSION='1.3.7';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Para receber o feedback por email, escreve aqui o teu endereço (fica visível no código da página). */
 const FEEDBACK_EMAIL='infoangomusic9@gmail.com';
@@ -502,13 +522,46 @@ let dip=null;
 const isInstalled=()=>{try{return matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches||!!navigator.standalone;}catch(e){return false;}};
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;});
 window.addEventListener('appinstalled',()=>{dip=null;toast('Batuque instalada',2500);if($('#settings').classList.contains('show')&&sv==='main')renderSettings();});
+
+/* ---------- Janelas informativas do Batuque (substituem as do navegador) ---------- */
+function dlg(o){
+  return new Promise(res=>{
+    const old=document.getElementById('dlg');if(old)old.remove();
+    const d=document.createElement('div');d.id='dlg';if(o.danger)d.className='danger';
+    d.setAttribute('role','dialog');d.setAttribute('aria-modal','true');
+    const box=document.createElement('div');box.className='dbox';
+    const head=document.createElement('div');head.className='dhead';
+    const ico=document.createElement('div');ico.className='dico';ico.innerHTML=ic(o.icon||(o.danger?'trash':o.input?'music':'feedback'));
+    const h=document.createElement('h2');h.textContent=o.title||'Batuque';
+    head.append(ico,h);box.append(head);
+    if(o.msg){const p=document.createElement('p');p.textContent=o.msg;box.append(p);}
+    let inp=null;
+    if(o.input){inp=document.createElement('input');inp.type='text';inp.value=o.value||'';inp.placeholder=o.placeholder||'';inp.autocomplete='off';inp.maxLength=120;box.append(inp);}
+    const bt=document.createElement('div');bt.className='dbtn';
+    const done=v=>{document.removeEventListener('keydown',key,true);d.remove();res(v);};
+    if(o.cancel!==null){const c=document.createElement('button');c.textContent=o.cancel||'Cancelar';c.onclick=()=>done(inp?null:false);bt.append(c);}
+    const k=document.createElement('button');k.className='ok';k.textContent=o.ok||'OK';
+    k.onclick=()=>done(inp?inp.value.trim():true);bt.append(k);
+    box.append(bt);d.append(box);
+    const key=e=>{
+      if(e.key==='Escape'){e.preventDefault();done(inp?null:(o.cancel===null?true:false));}
+      else if(e.key==='Enter'&&e.target!==document.body&&inp){e.preventDefault();k.click();}
+    };
+    document.addEventListener('keydown',key,true);
+    d.addEventListener('pointerdown',e=>{if(e.target===d)done(inp?null:(o.cancel===null?true:false));});
+    document.body.append(d);
+    setTimeout(()=>{if(inp){inp.focus();inp.select();}else k.focus();},30);
+  });
+}
+const askOk=(title,msg,ok,danger)=>dlg({title,msg,ok:ok||'Confirmar',danger:!!danger});
+const askText=(title,msg,value,placeholder,ok)=>dlg({title,msg,input:true,value,placeholder,ok:ok||'Guardar'});
 async function installApp(){
   if(isInstalled()){toast('A app já está instalada');return;}
   if(dip){
     try{dip.prompt();const r=await dip.userChoice;dip=null;if(r&&r.outcome==='accepted')toast('A instalar…',2500);}catch(e){}
     return;
   }
-  alert('Para instalar: abre o menu ⋮ do Chrome e escolhe "Instalar app" (ou "Adicionar ao ecrã inicial").');
+  await dlg({title:'Instalar o Batuque',msg:'Abre o menu ⋮ do Chrome e escolhe «Instalar app» (ou «Adicionar ao ecrã inicial»).\nDepois abre sempre o Batuque pelo ícone.',ok:'Entendi',cancel:null,icon:'plus'});
 }
 
 /* Atualizar app */
@@ -520,7 +573,7 @@ async function checkUpdate(){
     if(!r.ok)throw new Error(r.status);
     const m=(await r.text()).match(/APP_VERSION\s*=\s*'([^']+)'/),nv=m&&m[1];
     if(nv&&nv!==APP_VERSION){
-      if(confirm('Há uma nova versão ('+nv+'). Atualizar agora? A música em reprodução vai parar.')){
+      if(await dlg({title:'Nova versão disponível',msg:'A versão '+nv+' está pronta (tens a '+APP_VERSION+').\nA música em reprodução vai parar durante a atualização.',ok:'Atualizar',cancel:'Agora não',icon:'refresh'})){
         if(window.caches){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)));}
         if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(x=>x.unregister()));}
         location.reload();
@@ -891,7 +944,7 @@ $('#dirfile').onchange=async e=>{
   let fb='';
   if(!hasPath){
     /* alguns navegadores móveis não indicam a pasta: pede o nome */
-    fb=(prompt('Nome da pasta para estas '+files.length+' músicas:','Minhas músicas')||'').trim();
+    fb=(await askText('Nome da pasta','Dá um nome ao grupo das '+files.length+' músicas escolhidas.','Minhas músicas','Nome da pasta','Adicionar')||'').trim();
     if(!fb)return;
   }
   await importFiles(files.map(f=>{
@@ -1074,7 +1127,7 @@ function selAll(){
 async function delSel(){
   const ids=[...sel].filter(byId);if(!ids.length)return;
   const msg=ids.length===1?'Apagar "'+byId(ids[0]).title+'" da biblioteca?':'Apagar '+ids.length+' músicas da biblioteca?\nEsta ação não pode ser desfeita.';
-  if(!confirm(msg))return;
+  if(!await askOk('Apagar da biblioteca',msg,'Apagar',true))return;
   await delTracks(ids);
   toast(ids.length+(ids.length>1?' músicas apagadas':' música apagada'));
 }
@@ -1140,7 +1193,7 @@ function pickList(t){
   sheet('Adicionar a…',it);
 }
 async function newList(){
-  const name=(prompt('Nome da lista:')||'').trim();if(!name)return null;
+  const name=(await askText('Nova lista','Escolhe um nome para a lista de reprodução.','','Nome da lista','Criar')||'').trim();if(!name)return null;
   const l={id:crypto.randomUUID(),name,ids:[]};
   await tx('lists','readwrite',s=>s.put(l));lists.push(l);render();return l;
 }
@@ -1149,7 +1202,7 @@ function folderMenu(){
   const ids=tracks.filter(t=>(t.folder||'')===view.name).map(t=>t.id);
   sheet(folderName(view.name),[
     {label:'Apagar as '+ids.length+' músicas desta pasta',danger:true,fn:async()=>{
-      if(!ids.length||!confirm('Apagar '+ids.length+(ids.length>1?' músicas':' música')+' da pasta "'+folderName(view.name)+'" da biblioteca?\nEsta ação não pode ser desfeita.'))return;
+      if(!ids.length||!await askOk('Apagar pasta','Apagar '+ids.length+(ids.length>1?' músicas':' música')+' da pasta "'+folderName(view.name)+'" da biblioteca?\nEsta ação não pode ser desfeita.','Apagar',true))return;
       await delTracks(ids);view={t:'folders'};render();toast('Pasta apagada');
     }}
   ]);
@@ -1157,13 +1210,13 @@ function folderMenu(){
 function listMenu(){
   const l=lists.find(x=>x.id===view.id);if(!l)return;
   sheet(l.name,[
-    {label:'Renomear lista',fn:async()=>{const n=(prompt('Novo nome:',l.name)||'').trim();if(n){l.name=n;await tx('lists','readwrite',s=>s.put(l));render();}}},
-    {label:'Apagar lista',danger:true,fn:async()=>{if(!confirm('Apagar a lista "'+l.name+'"?'))return;await tx('lists','readwrite',s=>s.delete(l.id));lists=lists.filter(x=>x.id!==l.id);view={t:'lists'};render();}}
+    {label:'Renomear lista',fn:async()=>{const n=(await askText('Renomear lista','',l.name,'Nome da lista')||'').trim();if(n){l.name=n;await tx('lists','readwrite',s=>s.put(l));render();}}},
+    {label:'Apagar lista',danger:true,fn:async()=>{if(!await askOk('Apagar lista','Apagar a lista "'+l.name+'"?\nAs músicas não são apagadas da biblioteca.','Apagar',true))return;await tx('lists','readwrite',s=>s.delete(l.id));lists=lists.filter(x=>x.id!==l.id);view={t:'lists'};render();}}
   ]);
 }
 async function renameTrack(t){
-  const title=(prompt('Título:',t.title)||'').trim();if(!title)return;
-  const artist=(prompt('Artista:',t.artist)||'').trim()||t.artist;
+  const title=(await askText('Renomear música','Título da música',t.title,'Título')||'').trim();if(!title)return;
+  const artist=(await askText('Renomear música','Artista',t.artist,'Artista')||'').trim()||t.artist;
   t.title=title;t.artist=artist;await tx('tracks','readwrite',s=>s.put(t));render();
 }
 async function delTracks(ids){
@@ -1186,7 +1239,7 @@ async function delTracks(ids){
   render();
 }
 async function delTrack(t){
-  if(!confirm('Apagar "'+t.title+'"?'))return;
+  if(!await askOk('Apagar música','Apagar "'+t.title+'" da biblioteca?\nEsta ação não pode ser desfeita.','Apagar',true))return;
   const playing=cur()&&cur().id===t.id;
   await tx('tracks','readwrite',s=>s.delete(t.id));
   for(const l of lists){if(l.ids.includes(t.id)){l.ids=l.ids.filter(i=>i!==t.id);await tx('lists','readwrite',s=>s.put(l));}}
@@ -1487,7 +1540,7 @@ async function backupImport(file){
   }catch(e){}
   if(!d||d.app!=='Batuque'||!Array.isArray(d.tracks)){toast('Ficheiro inválido: não é uma cópia do Batuque',4000);return;}
   const nf=d.tracks.filter(t=>t.fav).length,nl=(d.lists||[]).length;
-  if(!confirm('Restaurar a cópia de '+(d.date?d.date.slice(0,10):'data desconhecida')+'?\nContém '+nf+(nf===1?' favorito':' favoritos')+' e '+nl+(nl===1?' lista':' listas')+'.\nFavoritos, listas, estatísticas e definições são combinados com os atuais.\nAs músicas em si não fazem parte da cópia: têm de estar na biblioteca.'))return;
+  if(!await dlg({title:'Restaurar cópia',msg:'Restaurar a cópia de '+(d.date?d.date.slice(0,10):'data desconhecida')+'?\nContém '+nf+(nf===1?' favorito':' favoritos')+' e '+nl+(nl===1?' lista':' listas')+'.\nFavoritos, listas, estatísticas e definições são combinados com os atuais.\nAs músicas em si não fazem parte da cópia: têm de estar na biblioteca.',ok:'Restaurar',cancel:'Cancelar',icon:'refresh'}))return;
   const byKey=new Map(tracks.map(t=>[trackKey(t),t]));
   let found=0,miss=0;
   for(const b of d.tracks){
@@ -1869,14 +1922,14 @@ function statsHTML(){
   return h;
 }
 function statsMenu(){
-  sheet('Estatísticas',[{label:'Repor estatísticas',danger:true,fn:()=>{
-    if(!confirm('Apagar todas as estatísticas (reproduções, tempos e prémios)?'))return;
+  sheet('Estatísticas',[{label:'Repor estatísticas',danger:true,fn:async()=>{
+    if(!await askOk('Repor estatísticas','Apagar todas as estatísticas (reproduções, tempos e prémios)?\nEsta ação não pode ser desfeita.','Repor',true))return;
     ST={p:{},s:{},l:{},open:0,listen:0,sess:1,since:Date.now(),days:{}};stSess=0;stSave();render();toast('Estatísticas repostas');
   }}]);
 }
 function genreSheet(title,cb){
   const it=GENRES.map(g=>({label:g,fn:()=>cb(g)}));
-  it.push({label:'Outro…',fn:()=>{const v=normGenre(prompt('Nome do estilo:')||'');if(v)cb(v);}});
+  it.push({label:'Outro…',fn:async()=>{const v=normGenre(await askText('Novo estilo','Escreve o nome do estilo de música.','','Ex.: Kizomba','Definir')||'');if(v)cb(v);}});
   it.push({label:'Sem estilo',fn:()=>cb('')});
   sheet(title,it);
 }
