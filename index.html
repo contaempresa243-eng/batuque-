@@ -230,7 +230,7 @@ button.srow:active{background:var(--card2)}
 .row.g .cov{width:100%;height:auto;aspect-ratio:1;border-radius:12px;font-size:34px}
 .row.g .meta{flex:none;text-align:left;padding:0 2px}
 .row.g .t{font-size:13px}.row.g .a{font-size:12px}
-.row.g .gm{position:absolute;top:10px;right:10px;background:#000a;color:#fff;border-radius:50%;padding:3px;display:grid;place-items:center}
+.row.g .gm{position:absolute;top:10px;right:10px;background:transparent;filter:drop-shadow(0 0 2px #000c) drop-shadow(0 0 5px #0006);color:#fff;border-radius:50%;padding:3px;display:grid;place-items:center}
 .row.g .gm svg{width:20px;height:20px}
 .row.g .chk{position:absolute;top:12px;left:12px;background:#000a;border-color:#fff;z-index:1}
 .row.g.sel .chk{background:var(--yel);border-color:var(--yel)}
@@ -392,7 +392,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.3.4';
+const APP_VERSION='1.3.5';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Para receber o feedback por email, escreve aqui o teu endereço (fica visível no código da página). */
 const FEEDBACK_EMAIL='infoangomusic9@gmail.com';
