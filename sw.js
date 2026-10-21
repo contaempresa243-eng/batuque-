@@ -36,3 +36,18 @@ self.addEventListener('fetch',e=>{
     }
   })());
 });
+
+/* Notificação personalizada: os botões enviam o comando para a app aberta */
+self.addEventListener('notificationclick',e=>{
+  const a=e.action||'open';
+  e.notification.close();
+  e.waitUntil((async()=>{
+    const cs=await clients.matchAll({type:'window',includeUncontrolled:true});
+    if(a==='open'){
+      if(cs.length){try{await cs[0].focus();}catch(x){}}
+      else await clients.openWindow('./index.html');
+      return;
+    }
+    cs.forEach(c=>c.postMessage({batuque:a}));
+  })());
+});
