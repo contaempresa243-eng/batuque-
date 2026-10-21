@@ -313,6 +313,7 @@ header{position:relative}
 <input type="file" id="dirfile" webkitdirectory multiple hidden>
 <input type="file" id="imgfile" accept="image/*" hidden>
 <input type="file" id="bgfile" accept="image/*" hidden>
+<input type="file" id="bkfile" accept=".json,application/json" hidden>
 <audio id="audio" preload="metadata"></audio>
 
 <script>
@@ -389,7 +390,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.1.6';
+const APP_VERSION='1.2.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Para receber o feedback por email, escreve aqui o teu endereço (fica visível no código da página). */
 const FEEDBACK_EMAIL='infoangomusic9@gmail.com';
@@ -564,6 +565,9 @@ function renderSettings(){
     <button class="srow" data-go="theme"><span class="si">${ic('palette')}</span><span class="st"><b>Tema</b><small>Paleta de cores, galeria e estilo do cartão</small></span>${ic('chev')}</button>
     <div class="srow"><span class="si">${ic('contrast')}</span><span class="st"><b>Aparência</b><small>Escuro, claro ou predefinido (segue o sistema)</small></span><div class="seg">${modes.map(([k,n])=>`<button data-mode="${k}" class="${CFG.mode===k?'on':''}">${n}</button>`).join('')}</div></div>
     <button class="srow" data-act="fs"><span class="si">${ic('fullscreen')}</span><span class="st"><b>Modo ecrã cheio</b><small>Esconde a barra do navegador · instala a app para não ver o aviso do Chrome</small></span><span class="sw${fsWant()||fsOn()?' on':''}"></span></button>
+    <div class="sgroup">Dados</div>
+    <button class="srow" data-act="bkexp"><span class="si">${ic('down')}</span><span class="st"><b>Guardar cópia de segurança</b><small>Listas, favoritos, estatísticas e definições num ficheiro</small></span>${ic('chev')}</button>
+    <button class="srow" data-act="bkimp"><span class="si">${ic('refresh')}</span><span class="st"><b>Restaurar cópia de segurança</b><small>Escolhe um ficheiro guardado antes</small></span>${ic('chev')}</button>
     <div class="sgroup">Sobre a app</div>
     <button class="srow" data-act="install"><span class="si">${ic('plus')}</span><span class="st"><b>${isInstalled()?'App instalada':'Instalar app'}</b><small>${isInstalled()?'A notificação mostra o nome Batuque':'Notificação com o nome Batuque e ícone no ecrã inicial'}</small></span>${isInstalled()?'':ic('chev')}</button>
     <button class="srow" data-act="update"><span class="si">${ic('refresh')}</span><span class="st"><b>Atualizar app</b><small>Versão ${APP_VERSION} · procurar atualizações</small></span>${ic('chev')}</button>
@@ -583,6 +587,8 @@ $('#sset').addEventListener('click',async e=>{
   if(d.card){CFG.card=d.card;saveCfg();applyTheme();renderSettings();return;}
   if(d.act==='fs')toggleFS();
   else if(d.act==='update')checkUpdate();
+  else if(d.act==='bkexp')backupExport();
+  else if(d.act==='bkimp')$('#bkfile').click();
   else if(d.act==='install')installApp();
   else if(d.act==='feedback')openFeedback();
   else if(d.act==='bgpick')$('#bgfile').click();
@@ -823,6 +829,7 @@ async function load(){
   lists=await tx('lists','readonly',s=>s.getAll());
   tracks.sort((a,b)=>b.added-a.added);
   syncQueue();
+  restoreResume();
   render();
   backfill();
 }
@@ -845,6 +852,7 @@ async function importFiles(list){
     await load();
   }else toast(skip?'Essas músicas já estavam na biblioteca':'Nenhuma música encontrada',2800);
 }
+$('#bkfile').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)backupImport(f);};
 $('#file').onchange=async e=>{
   const files=[...e.target.files];e.target.value='';
   await importFiles(files.map(f=>({f,folder:''})));
@@ -1097,7 +1105,8 @@ function trackMenu(t,full){
   if(full){
     it=[
       {label:'Tocar a seguir',fn:()=>{if(qi<0){play([t.id],0);}else{queue.splice(qi+1,0,t.id);toast('Vai tocar a seguir');}}},
-      {label:'Adicionar a uma lista',fn:()=>pickList(t)}
+      {label:'Adicionar a uma lista',fn:()=>pickList(t)},
+      {label:sleepLabel(),fn:sleepMenu}
     ];
     if(view.t==='list')it.push(rmList);
     it.push({label:t.cover?'Mudar capa':'Adicionar capa',fn:()=>pickCover(t)});
@@ -1200,7 +1209,7 @@ function loadCur(){
   if(actx&&actx.state==='suspended')actx.resume();
   audio.src=curUrl;
   audio.play().catch(()=>{});
-  setSession(t);render();
+  setSession(t);render();saveResume(true);
 }
 function next(auto){
   if(!queue.length)return;
@@ -1217,14 +1226,14 @@ function prev(force){
   qi=qi>0?qi-1:queue.length-1;loadCur();
 }
 const toggle=()=>{if(qi<0)return;audio.paused?audio.play():audio.pause();};
-audio.onended=()=>next(true);
+audio.onended=()=>{if(sleepMode==='track'){sleepClear();audio.pause();updateUI();toast('Temporizador: música terminada',3000);return;}next(true);};
 audio.onplay=audio.onpause=()=>{updateUI();if('mediaSession'in navigator)navigator.mediaSession.playbackState=audio.paused?'paused':'playing';};
 audio.ontimeupdate=()=>{
   const d=audio.duration||0,c=audio.currentTime;
   if(!seeking)$('#seek').value=d?c/d*1000:0;
   $('#tc').textContent=fmt(c);$('#td').textContent=fmt(d);
   $('#mprog').style.width=d?(c/d*100)+'%':'0';
-  syncPos();
+  syncPos();saveResume();
 };
 let posT=0;
 function syncPos(force){
@@ -1312,6 +1321,117 @@ async function setSession(t){
    Limpa restos de versões anteriores (opção guardada e notificação ainda aberta). */
 try{localStorage.removeItem('batuque_np');}catch(e){}
 if('serviceWorker'in navigator){navigator.serviceWorker.getRegistration().then(r=>r&&r.getNotifications({tag:'batuque-np'}).then(l=>l.forEach(n=>n.close()))).catch(()=>{});}
+
+
+/* ---------- Retomar onde parou ---------- */
+const RS_KEY='batuque_resume';
+let rsLast=0,rsWait=false,rsDone=false;
+function saveResume(force){
+  if(rsWait)return;
+  const now=Date.now();if(!force&&now-rsLast<4000)return;
+  const t=cur();if(!t)return;rsLast=now;
+  try{
+    const d=audio.duration||0,c=audio.readyState<1?0:audio.currentTime||0;
+    localStorage.setItem(RS_KEY,JSON.stringify({id:t.id,pos:(d&&c>d-3)?0:Math.floor(c*10)/10,q:queue.length<=3000?queue:[t.id],qi:queue.length<=3000?qi:0,ctx:ctxName}));
+  }catch(e){}
+}
+function restoreResume(){
+  if(rsDone||qi>=0)return;rsDone=true;
+  let r=null;try{r=JSON.parse(localStorage.getItem(RS_KEY)||'null');}catch(e){}
+  if(!r||!r.id||!byId(r.id))return;
+  const q=(Array.isArray(r.q)?r.q:[r.id]).filter(id=>byId(id));
+  const i=q.indexOf(r.id);if(i<0)return;
+  queue=q;qi=i;ctxName=r.ctx||'A tocar';qctx=null;
+  const t=cur();if(curUrl)URL.revokeObjectURL(curUrl);
+  curUrl=URL.createObjectURL(t.blob);audio.src=curUrl;audio.pause();
+  const pos=+r.pos||0;
+  if(pos>1){
+    rsWait=true;
+    audio.addEventListener('loadedmetadata',()=>{try{audio.currentTime=Math.min(pos,Math.max(0,(audio.duration||pos)-1));}catch(e){}rsWait=false;},{once:true});
+    setTimeout(()=>{rsWait=false;},4000);
+  }
+  setSession(t);updateUI();
+}
+audio.addEventListener('pause',()=>saveResume(true));
+document.addEventListener('visibilitychange',()=>{if(document.hidden)saveResume(true);});
+window.addEventListener('pagehide',()=>saveResume(true));
+
+/* ---------- Temporizador de sono ---------- */
+let sleepMode=null,sleepEnd=0,sleepT=0;
+function sleepClear(){sleepMode=null;sleepEnd=0;clearInterval(sleepT);sleepT=0;}
+function sleepLeft(){return Math.max(0,Math.ceil((sleepEnd-Date.now())/1000));}
+function sleepLabel(){
+  if(sleepMode==='track')return 'Temporizador de sono · no fim da música';
+  if(sleepMode==='time')return 'Temporizador de sono · '+fmt(sleepLeft())+' restantes';
+  return 'Temporizador de sono';
+}
+function sleepFade(){
+  const v0=audio.volume;let n=12;
+  const f=setInterval(()=>{
+    n--;audio.volume=Math.max(0,v0*n/12);
+    if(n<=0){clearInterval(f);audio.pause();audio.volume=vol;toast('Temporizador de sono: música parada',4000);}
+  },250);
+}
+function sleepSet(min){
+  sleepClear();
+  if(min==='track'){sleepMode='track';toast('A música pára no fim desta faixa',3000);return;}
+  sleepMode='time';sleepEnd=Date.now()+min*60000;
+  sleepT=setInterval(()=>{
+    if(sleepLeft()>0)return;
+    sleepClear();
+    if(!audio.paused)sleepFade();
+  },1000);
+  toast('A música pára dentro de '+min+' min',3000);
+}
+function sleepMenu(){
+  const it=[15,30,45,60,90].map(m=>({label:m+' minutos',fn:()=>sleepSet(m)}));
+  it.push({label:'No fim da música',fn:()=>sleepSet('track')});
+  if(sleepMode)it.push({label:'Desligar temporizador',danger:true,fn:()=>{sleepClear();toast('Temporizador desligado',2000);}});
+  sheet(sleepLabel(),it);
+}
+
+/* ---------- Cópia de segurança ---------- */
+const trackKey=t=>(t.blob?t.blob.size:0)+'|'+(t.fname||(t.title+'|'+t.artist));
+const BK_KEYS=['batuque_cfg','batuque_view','batuque_mini','batuque_vol','batuque_eq','batuque_stats','batuque_fgenre','batuque_fs'];
+function backupExport(){
+  const keyById=new Map(tracks.map(t=>[t.id,trackKey(t)]));
+  const data={app:'Batuque',v:1,date:new Date().toISOString(),
+    tracks:tracks.map(t=>({k:trackKey(t),title:t.title,artist:t.artist,genre:t.genre||'',folder:t.folder||'',fav:!!t.fav,added:t.added})),
+    lists:lists.map(l=>({name:l.name,keys:l.ids.map(i=>keyById.get(i)).filter(Boolean)})),
+    ls:{}};
+  BK_KEYS.forEach(k=>{try{const v=localStorage.getItem(k);if(v!==null)data.ls[k]=v;}catch(e){}});
+  const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+  const a=document.createElement('a'),u=URL.createObjectURL(blob);
+  a.href=u;a.download='Batuque-copia-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),10000);
+  toast('Cópia guardada (listas, favoritos, estatísticas e definições)',4000);
+}
+async function backupImport(file){
+  let d;try{d=JSON.parse(await file.text());}catch(e){}
+  if(!d||d.app!=='Batuque'||!Array.isArray(d.tracks)){toast('Ficheiro inválido: não é uma cópia do Batuque',4000);return;}
+  if(!confirm('Restaurar a cópia de '+(d.date?d.date.slice(0,10):'data desconhecida')+'?\nFavoritos, listas, estatísticas e definições são combinados com os atuais.\nAs músicas em si não fazem parte da cópia: têm de estar na biblioteca.'))return;
+  const byKey=new Map(tracks.map(t=>[trackKey(t),t]));
+  let found=0,miss=0;
+  for(const b of d.tracks){
+    const t=byKey.get(b.k);if(!t){miss++;continue;}
+    found++;let ch=false;
+    if(b.fav&&!t.fav){t.fav=true;ch=true;}
+    if(b.title&&b.title!==t.title){t.title=b.title;ch=true;}
+    if(b.artist&&b.artist!==t.artist){t.artist=b.artist;ch=true;}
+    if(b.genre&&b.genre!==t.genre){t.genre=b.genre;t.genreTried=true;ch=true;}
+    if(ch)await tx('tracks','readwrite',s=>s.put(t));
+  }
+  for(const b of (d.lists||[])){
+    const ids=(b.keys||[]).map(k=>byKey.get(k)).filter(Boolean).map(t=>t.id);
+    let l=lists.find(x=>x.name===b.name);
+    if(!l){l={id:crypto.randomUUID(),name:b.name,ids:[]};ids.forEach(i=>l.ids.push(i));}
+    else ids.forEach(i=>{if(!l.ids.includes(i))l.ids.push(i);});
+    await tx('lists','readwrite',s=>s.put(l));
+  }
+  try{Object.entries(d.ls||{}).forEach(([k,v])=>{if(BK_KEYS.includes(k)&&typeof v==='string')localStorage.setItem(k,v);});}catch(e){}
+  toast('Restaurado: '+found+' músicas encontradas'+(miss?' · '+miss+' não estão na biblioteca':''),3500);
+  setTimeout(()=>location.reload(),1800);
+}
 
 /* ---------- Equalizador (Web Audio) ---------- */
 const EQF=[60,230,910,3600,14000],EQL=['60 Hz','230 Hz','910 Hz','3,6 kHz','14 kHz'];
