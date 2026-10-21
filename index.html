@@ -418,7 +418,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.3.7';
+const APP_VERSION='1.3.8';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Para receber o feedback por email, escreve aqui o teu endereço (fica visível no código da página). */
 const FEEDBACK_EMAIL='infoangomusic9@gmail.com';
@@ -926,6 +926,13 @@ async function walkDir(h,name,out){
   }
 }
 async function pickFolder(){
+  /* o Chrome pede permissão para ler a pasta; explicamos antes, só da primeira vez */
+  let seen=false;try{seen=localStorage.getItem('batuque_dirhint')==='1';}catch(e){}
+  if(!seen){
+    const ok=await dlg({title:'Adicionar uma pasta',msg:'Escolhe a pasta onde tens as músicas.\nA seguir, o Chrome vai perguntar se o Batuque pode ver os ficheiros dessa pasta: toca em «Permitir».\nAs músicas são copiadas para dentro da app e ficam disponíveis sem internet.',ok:'Escolher pasta',cancel:'Cancelar',icon:'folder'});
+    if(!ok)return;
+    try{localStorage.setItem('batuque_dirhint','1');}catch(e){}
+  }
   if(window.showDirectoryPicker){
     try{
       const dir=await window.showDirectoryPicker({mode:'read'}),out=[];
