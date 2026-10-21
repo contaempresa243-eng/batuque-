@@ -389,7 +389,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.1.5';
+const APP_VERSION='1.1.6';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Para receber o feedback por email, escreve aqui o teu endereço (fica visível no código da página). */
 const FEEDBACK_EMAIL='infoangomusic9@gmail.com';
@@ -452,7 +452,8 @@ const FS_KEY='batuque_fs';
 const fsOn=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
 const fsWant=()=>{try{return localStorage.getItem(FS_KEY)==='1';}catch(e){return false;}};
 const fsSet=v=>{try{if(v)localStorage.setItem(FS_KEY,'1');else localStorage.removeItem(FS_KEY);}catch(e){}};
-const fsReq=()=>{const el=document.documentElement,f=el.requestFullscreen||el.webkitRequestFullscreen;return f?f.call(el):Promise.reject();};
+const isApp=()=>{try{return matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;}catch(e){return false;}};
+const fsReq=()=>{if(isApp())return Promise.resolve();const el=document.documentElement,f=el.requestFullscreen||el.webkitRequestFullscreen;return f?f.call(el):Promise.reject();};
 async function toggleFS(){
   try{
     if(fsWant()||fsOn()){
@@ -467,6 +468,9 @@ async function toggleFS(){
 }
 /* volta a entrar em ecrã cheio no próximo toque, se o utilizador o tinha ligado */
 function fsRestore(){
+  /* o aviso do Chrome («Para sair do ecrã inteiro…») aparece sempre que uma página pede ecrã cheio;
+     por isso a app instalada já abre em ecrã cheio sem pedir, e no navegador só entra quando o utilizador liga a opção */
+  if(true)return;
   if(!fsWant()||fsOn())return;
   const go=()=>{
     if(!fsWant()||fsOn()){off();return;}
@@ -559,7 +563,7 @@ function renderSettings(){
     h+=`<div class="sgroup">Ecrã</div>
     <button class="srow" data-go="theme"><span class="si">${ic('palette')}</span><span class="st"><b>Tema</b><small>Paleta de cores, galeria e estilo do cartão</small></span>${ic('chev')}</button>
     <div class="srow"><span class="si">${ic('contrast')}</span><span class="st"><b>Aparência</b><small>Escuro, claro ou predefinido (segue o sistema)</small></span><div class="seg">${modes.map(([k,n])=>`<button data-mode="${k}" class="${CFG.mode===k?'on':''}">${n}</button>`).join('')}</div></div>
-    <button class="srow" data-act="fs"><span class="si">${ic('fullscreen')}</span><span class="st"><b>Modo ecrã cheio</b><small>Esconde a barra do navegador</small></span><span class="sw${fsWant()||fsOn()?' on':''}"></span></button>
+    <button class="srow" data-act="fs"><span class="si">${ic('fullscreen')}</span><span class="st"><b>Modo ecrã cheio</b><small>Esconde a barra do navegador · instala a app para não ver o aviso do Chrome</small></span><span class="sw${fsWant()||fsOn()?' on':''}"></span></button>
     <div class="sgroup">Sobre a app</div>
     <button class="srow" data-act="install"><span class="si">${ic('plus')}</span><span class="st"><b>${isInstalled()?'App instalada':'Instalar app'}</b><small>${isInstalled()?'A notificação mostra o nome Batuque':'Notificação com o nome Batuque e ícone no ecrã inicial'}</small></span>${isInstalled()?'':ic('chev')}</button>
     <button class="srow" data-act="update"><span class="si">${ic('refresh')}</span><span class="st"><b>Atualizar app</b><small>Versão ${APP_VERSION} · procurar atualizações</small></span>${ic('chev')}</button>
