@@ -367,7 +367,7 @@ header{position:relative}
 </div>
 
 <div id="lyrics">
-  <div class="lhead"><button class="ib" id="lback" aria-label="Voltar"></button><div id="lplayer"></div></div>
+  <div class="lhead"><button class="ib" id="lyback" aria-label="Voltar"></button><div id="lplayer"></div></div>
   <div class="ltr" id="ltr"><button data-l="orig">Original</button><button data-l="pt">Português</button><button data-l="en">English</button></div>
   <div id="ltitle"></div>
   <div id="ltext"></div>
@@ -465,7 +465,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.4.0';
+const APP_VERSION='1.4.1';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Para receber o feedback por email, escreve aqui o teu endereço (fica visível no código da página). */
 const FEEDBACK_EMAIL='infoangomusic9@gmail.com';
@@ -1784,7 +1784,7 @@ function lyUI(){
   pl.innerHTML=`<div class="lpl"><div class="cov" style="${cover(t)}">${covInner(t)}</div>
     <div class="meta" id="lpo"><div class="t">${esc(t.title)}</div><div class="a">${esc(t.artist)}</div></div>
     <button class="ib" id="lpprev">${ic('prev')}</button><button class="ib lp" id="lpplay">${ic(audio.paused?'play':'pause')}</button><button class="ib" id="lpnext">${ic('next')}</button><div class="prog" id="lprog"></div></div>`;
-  $('#lpprev').onclick=prev;$('#lpnext').onclick=()=>next(false);$('#lpplay').onclick=toggle;$('#lpo').onclick=openFull;
+  $('#lpprev').onclick=prev;$('#lpnext').onclick=()=>next(false);$('#lpplay').onclick=toggle;$('#lpo').onclick=openFull;pl.querySelector('.cov').onclick=openFull;
   const d=audio.duration||0;$('#lprog').style.width=d?(audio.currentTime/d*100)+'%':'0';
   if(t.id!==lyCur){lyCur=t.id;lyLang='orig';lyRender();}
 }
@@ -1835,9 +1835,9 @@ function lyPrint(){
   setTimeout(()=>{try{window.print();}catch(e){done();}},60);
 }
 $('#lyrb').innerHTML=ic('lyrics',24);
-$('#lback').innerHTML=ic('back');$('#lsearch').innerHTML=ic('search');$('#lprint').innerHTML=ic('print');
+$('#lyback').innerHTML=ic('back');$('#lsearch').innerHTML=ic('search');$('#lprint').innerHTML=ic('print');
 $('#lyrb').onclick=openLyrics;
-$('#lback').onclick=()=>$('#lyrics').classList.remove('show');
+$('#lyback').onclick=()=>$('#lyrics').classList.remove('show');
 $('#lsearch').onclick=lySearch;$('#lprint').onclick=lyPrint;
 $('#ltr').onclick=e=>{const b=e.target.closest('button');if(b)lySetLang(b.dataset.l);};
 audio.addEventListener('timeupdate',()=>{const p=$('#lprog');if(p){const d=audio.duration||0;p.style.width=d?(audio.currentTime/d*100)+'%':'0';}});
@@ -1944,7 +1944,7 @@ function updateUI(){
   $('#brep').className='ib'+(repeat?' act':'');
   $('#brep').innerHTML=ic(repeat===2?'rep1':'rep');
 }
-function openFull(){$('#full').classList.add('show');vzKick();}
+function openFull(){$('#lyrics').classList.remove('show');$('#full').classList.add('show');vzKick();}
 $('#fclose').onclick=()=>$('#full').classList.remove('show');
 $('#fmore').onclick=()=>{const t=cur();if(t)trackMenu(t,true);};
 $('#ffav').onclick=()=>{const t=cur();if(t)toggleFav(t);};
