@@ -132,6 +132,30 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:0;border-radiu
 #dlg .dbtn button:active{transform:scale(.97)}
 @keyframes dlgf{from{opacity:0}to{opacity:1}}
 @keyframes dlgp{from{transform:translateY(10px) scale(.96);opacity:0}to{transform:none;opacity:1}}
+
+.lbtn.pill{width:auto;height:44px;border-radius:999px;padding:0 16px;font-size:14px;font-weight:700;background:var(--card2);color:var(--tx);justify-self:end;display:flex;gap:6px;align-items:center;box-shadow:0 4px 14px #0004}
+.lbtn.pill svg{width:20px;height:20px;color:var(--yel)}
+#linfo{position:fixed;inset:0;z-index:40;background:#000a;display:none;align-items:flex-end;justify-content:center}
+#linfo.show{display:flex;animation:dlgf .16s ease-out}
+#linfo .ib2{max-width:640px;width:100%;max-height:82dvh;background:var(--card);color:var(--tx);border-radius:22px 22px 0 0;display:flex;flex-direction:column;overflow:hidden;position:relative;animation:lup .2s ease-out}
+#linfo .ib2::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,var(--red) 50%,var(--yel) 50%)}
+#linfo .ihead{display:flex;align-items:center;gap:10px;padding:18px 14px 8px 18px}
+#linfo .ihead h2{flex:1;font-size:18px;margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#linfo .ihead button{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--card2);color:var(--tx)}
+#linfo .ibody{overflow:auto;padding:4px 18px calc(22px + env(safe-area-inset-bottom));font-size:15px;line-height:1.5}
+#linfo .ibody h3{font-size:12px;letter-spacing:.8px;text-transform:uppercase;color:var(--yel);margin:16px 0 6px}
+#linfo .ibody p{margin:0 0 10px;white-space:pre-line}
+#linfo .ibody .src{font-size:12px;color:var(--mut);margin-top:12px}
+#linfo .ibody a{color:var(--yel)}
+#linfo .ibody .note{background:var(--card2);border-radius:12px;padding:10px 12px;font-size:13.5px;color:var(--mut);margin:8px 0}
+#linfo .rel{display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd)}
+#linfo .rel img{width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--card2);flex:none}
+#linfo .rel b{display:block;font-size:14.5px}
+#linfo .rel small{color:var(--mut);font-size:12.5px}
+#linfo .bio{display:flex;gap:12px;align-items:flex-start}
+#linfo .bio img{width:72px;height:72px;border-radius:14px;object-fit:cover;flex:none}
+#linfo .wait{text-align:center;color:var(--mut);padding:34px 0}
+@keyframes lup{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
 #sheet{position:fixed;inset:0;background:#000a;z-index:30;display:none;align-items:flex-end;justify-content:center}
 #sheet.show{display:flex}
 #sheet .box{background:var(--card);width:100%;max-width:640px;border-radius:20px 20px 0 0;padding:12px 8px calc(12px + env(safe-area-inset-bottom));max-height:52dvh;overflow:auto}
@@ -372,8 +396,9 @@ header{position:relative}
   <div class="ltr" id="ltr"><button data-l="orig">Original</button><button data-l="pt">Português</button><button data-l="en">English</button></div>
   <div id="ltitle"></div>
   <div id="ltext"></div>
-  <div class="lfoot"><span></span><button class="lbtn" id="lsearch" aria-label="Procurar letra"></button><button class="lbtn sm" id="lprint" aria-label="Imprimir letra"></button></div>
+  <div class="lfoot"><button class="lbtn pill" id="lknow" aria-label="Sabias?"></button><button class="lbtn" id="lsearch" aria-label="Procurar letra"></button><button class="lbtn sm" id="lprint" aria-label="Imprimir letra"></button></div>
 </div>
+<div id="linfo"><div class="ib2"><div class="ihead"><h2 id="linfot"></h2><button id="linfox" aria-label="Fechar"></button></div><div class="ibody" id="linfob"></div></div></div>
 <div id="settings">
   <div class="shead">
     <button class="ib" id="sback" aria-label="Voltar"></button>
@@ -396,7 +421,7 @@ header{position:relative}
 const $=s=>document.querySelector(s);
 const IC={
 lyrics:'M3 5h12v2H3V5zm0 4h12v2H3V9zm0 4h8v2H3v-2zM19 3v10.55A3.5 3.5 0 1017 17V7h4V3h-2z',search:'M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',print:'M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z',
-play:'M8 5v14l11-7z',settings:'M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z',pause:'M6 5h4v14H6zm8 0h4v14h-4z',
+bulb:'M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z',play:'M8 5v14l11-7z',settings:'M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z',pause:'M6 5h4v14H6zm8 0h4v14h-4z',
 next:'M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z',prev:'M6 6h2v12H6zm3.5 6l8.5 6V6z',
 heart:'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z',
 heartO:'M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z',
@@ -466,7 +491,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.4.2';
+const APP_VERSION='1.5.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Para receber o feedback por email, escreve aqui o teu endereço (fica visível no código da página). */
 const FEEDBACK_EMAIL='infoangomusic9@gmail.com';
@@ -1835,6 +1860,166 @@ function lyPrint(){
   addEventListener('afterprint',done);
   setTimeout(()=>{try{window.print();}catch(e){done();}},60);
 }
+
+/* ---------- Sabias? (novidades do artista e sobre a música) ---------- */
+const INFO_KEY='batuque_info';
+let infoDB={};try{infoDB=JSON.parse(localStorage.getItem(INFO_KEY)||'{}')||{};}catch(e){infoDB={};}
+function infoSave(){
+  try{
+    const ks=Object.keys(infoDB);
+    if(ks.length>60)ks.sort((a,b)=>(infoDB[a].ts||0)-(infoDB[b].ts||0)).slice(0,ks.length-60).forEach(k=>delete infoDB[k]);
+    localStorage.setItem(INFO_KEY,JSON.stringify(infoDB));
+  }catch(e){}
+}
+const normTxt=x=>(x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+function jsonp(url){
+  return new Promise((res,rej)=>{
+    const cb='bq'+Math.random().toString(36).slice(2),sc=document.createElement('script');
+    const to=setTimeout(()=>{cleanup();rej(new Error('timeout'));},12000);
+    const cleanup=()=>{clearTimeout(to);delete window[cb];sc.remove();};
+    window[cb]=d=>{cleanup();res(d);};
+    sc.onerror=()=>{cleanup();rej(new Error('erro'));};
+    sc.src=url+(url.includes('?')?'&':'?')+'callback='+cb;document.head.append(sc);
+  });
+}
+const ARTIST_RX=/cantor|cantora|banda|músic|musician|singer|rapper|rapper|compositor|songwriter|grupo|group|duo|dupla|artist|band|vocalist|produtor|dj\b/i;
+async function wikiSearch(lang,q){
+  const o=await lyJson('https://'+lang+'.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(q)+'&srlimit=4&format=json&origin=*');
+  return (o&&o.query&&o.query.search)||[];
+}
+async function wikiSummary(lang,title){
+  return await lyJson('https://'+lang+'.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(title.replace(/ /g,'_')));
+}
+async function wikiArtist(name){
+  const n=normTxt(name);
+  for(const lang of ['pt','en']){
+    const rs=await wikiSearch(lang,name);
+    for(const r of rs){
+      if(!normTxt(r.title).includes(n.split(' ')[0]))continue;
+      const sm=await wikiSummary(lang,r.title);
+      if(sm&&sm.extract&&sm.type!=='disambiguation'&&ARTIST_RX.test(sm.extract.slice(0,400))&&normTxt(sm.title).split(' ')[0]===n.split(' ')[0]){
+        return {text:sm.extract,img:sm.thumbnail&&sm.thumbnail.source||'',url:sm.content_urls&&sm.content_urls.desktop&&sm.content_urls.desktop.page||'',lang,title:sm.title};
+      }
+    }
+  }
+  return null;
+}
+async function itunesReleases(artist){
+  const url='https://itunes.apple.com/search?term='+encodeURIComponent(artist)+'&media=music&entity=song&attribute=artistTerm&limit=200';
+  let o=await lyJson(url);
+  if(!o||!o.results){try{o=await jsonp(url);}catch(e){o=null;}}
+  if(!o||!Array.isArray(o.results))return null;
+  const n=normTxt(artist).split(' ')[0],seen=new Set(),out=[];
+  o.results.filter(r=>r.trackName&&r.releaseDate&&normTxt(r.artistName).includes(n)).sort((a,b)=>b.releaseDate.localeCompare(a.releaseDate)).forEach(r=>{
+    const k=normTxt(r.trackName).replace(/ (remaster|remastered|live|ao vivo|version|versao|edit|radio).*$/,'');
+    if(seen.has(k))return;seen.add(k);
+    out.push({n:r.trackName,a:r.collectionName||'',d:r.releaseDate.slice(0,10),i:(r.artworkUrl60||r.artworkUrl100||'')});
+  });
+  return out.slice(0,8);
+}
+async function wikiSong(title,artist){
+  const a1=normTxt(artist).split(' ')[0],t1=normTxt(title);
+  for(const lang of ['pt','en']){
+    const rs=await wikiSearch(lang,title+' '+artist+(lang==='pt'?' canção':' song'));
+    for(const r of rs){
+      if(!normTxt(r.title).includes(t1.split(' ')[0]))continue;
+      const sm=await wikiSummary(lang,r.title);
+      const ex=sm&&sm.extract||'',nx=normTxt(ex);
+      if(ex&&/canção|single|música|song|track|balada|ballad/i.test(ex.slice(0,300))&&(!a1||nx.includes(a1))&&sm.type!=='disambiguation'){
+        return {text:ex,url:sm.content_urls&&sm.content_urls.desktop&&sm.content_urls.desktop.page||'',lang,title:sm.title};
+      }
+    }
+  }
+  return null;
+}
+const STOP=new Set(('a o as os um uma uns umas de do da dos das em no na nos nas por pra para com sem sob sobre e ou mas que se me te lhe nos vos meu minha meus minhas teu tua teus tuas seu sua seus suas eu tu ele ela nós voce você vocês eles elas isso isto esse essa este esta aquele aquela ja já nao não so só mais muito muita tao tão como quando onde ser estar foi era vai vou tem tenho ter ha há the and you your yours but for with that this have has had was were are not its just like all out what when who how why from they them their there here then than into over about will would could should been being does did got get let make one two cause oh yeah hey ooh uh la na dont cant youre'.split(' ')));
+function lyAnalyze(text){
+  const lines=text.split('\n').map(x=>x.trim()).filter(Boolean);
+  const cnt=new Map(),orig=new Map();
+  lines.forEach(l=>{const k=normTxt(l);if(k.length<8)return;cnt.set(k,(cnt.get(k)||0)+1);if(!orig.has(k))orig.set(k,l);});
+  let best=null,bc=1;cnt.forEach((c,k)=>{if(c>bc){bc=c;best=k;}});
+  const w=new Map();
+  normTxt(text).split(' ').forEach(x=>{if(x.length>3&&!STOP.has(x))w.set(x,(w.get(x)||0)+1);});
+  const top=[...w.entries()].filter(e=>e[1]>=2).sort((a,b)=>b[1]-a[1]).slice(0,6).map(e=>e[0]);
+  return {chorus:best?orig.get(best):'',times:bc,words:top,lines:lines.length};
+}
+function infoOpen(title){$('#linfot').textContent=title;$('#linfo').classList.add('show');}
+function infoBody(html){const b=$('#linfob');b.innerHTML='';if(typeof html==='string')b.innerHTML=html;else b.append(html);b.scrollTop=0;}
+const eh=x=>esc(x==null?'':String(x));
+const fmtDate=d=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(d||'');return m?m[3]+'/'+m[2]+'/'+m[1]:'';};
+async function infoNews(){
+  const t=cur();if(!t){toast('Toca uma música primeiro');return;}
+  let artist=lyArtist(t.artist);
+  if(!artist){
+    artist=(await askText('Qual é o artista?','Não sei quem canta esta música. Escreve o nome do artista para procurar novidades.','','Nome do artista','Procurar')||'').trim();
+    if(!artist)return;
+  }
+  infoOpen('Novidades · '+artist);
+  const key='n|'+normTxt(artist),c=infoDB[key];
+  if(c&&c.v&&Date.now()-c.ts<3*864e5){infoRenderNews(artist,c.v);return;}
+  if(navigator.onLine===false){if(c&&c.v){infoRenderNews(artist,c.v);return;}infoBody('<div class="wait">Sem internet. As novidades precisam de ligação.</div>');return;}
+  infoBody('<div class="wait">A procurar novidades de '+eh(artist)+'…</div>');
+  let bio=null,rel=null;
+  try{[bio,rel]=await Promise.all([wikiArtist(artist).catch(()=>null),itunesReleases(artist).catch(()=>null)]);}catch(e){}
+  if(!$('#linfo').classList.contains('show'))return;
+  if(!bio&&!(rel&&rel.length)){
+    if(c&&c.v){infoRenderNews(artist,c.v);return;}
+    infoBody('<div class="wait">Não encontrei informação sobre «'+eh(artist)+'».<br>Confirma se o nome do artista está certo (Renomear) e tenta outra vez.</div>');return;
+  }
+  const v={bio,rel};infoDB[key]={v,ts:Date.now()};infoSave();infoRenderNews(artist,v);
+}
+function infoRenderNews(artist,v){
+  let h='';
+  if(v.bio){
+    h+='<h3>Biografia</h3><div class="bio">'+(v.bio.img?'<img src="'+eh(v.bio.img)+'" alt="">':'')+'<div><b>'+eh(v.bio.title)+'</b></div></div><p style="margin-top:8px">'+eh(v.bio.text)+'</p>';
+    h+='<div class="src">Fonte: Wikipédia'+(v.bio.lang==='en'?' (em inglês)':'')+(v.bio.url?' · <a href="'+eh(v.bio.url)+'" target="_blank" rel="noopener">ler mais</a>':'')+'</div>';
+  }
+  if(v.rel&&v.rel.length){
+    h+='<h3>Lançamentos mais recentes</h3>'+v.rel.map(r=>'<div class="rel">'+(r.i?'<img src="'+eh(r.i)+'" alt="" loading="lazy">':'<img alt="">')+'<div><b>'+eh(r.n)+'</b><small>'+eh(r.a)+(r.d?' · '+fmtDate(r.d):'')+'</small></div></div>').join('');
+    h+='<div class="src">Fonte: iTunes. Mostra os lançamentos mais recentes encontrados; pode não incluir tudo.</div>';
+  }else h+='<div class="note">Não encontrei lançamentos recentes deste artista.</div>';
+  infoBody(h);
+}
+async function infoAbout(){
+  const t=cur();if(!t){toast('Toca uma música primeiro');return;}
+  const title=lyClean(t.title),artist=lyArtist(t.artist);
+  infoOpen('Sobre · '+title);
+  const key='s|'+normTxt(title)+'|'+normTxt(artist),c=infoDB[key];
+  const e=lyDB[t.id];
+  let h='';
+  let w=c&&c.v!==undefined?c.v:undefined;
+  if(w===undefined){
+    if(navigator.onLine!==false){
+      infoBody('<div class="wait">A procurar informação sobre «'+eh(title)+'»…</div>');
+      try{w=await wikiSong(title,artist);}catch(err){w=null;}
+      if(!$('#linfo').classList.contains('show'))return;
+      infoDB[key]={v:w,ts:Date.now()};infoSave();
+    }else w=null;
+  }
+  if(w){
+    h+='<h3>Sobre a música</h3><p>'+eh(w.text)+'</p><div class="src">Fonte: Wikipédia'+(w.lang==='en'?' (em inglês)':'')+(w.url?' · <a href="'+eh(w.url)+'" target="_blank" rel="noopener">ler mais</a>':'')+'</div>';
+  }else{
+    h+='<div class="note">Não encontrei um texto sobre esta música na Wikipédia'+(navigator.onLine===false?' (sem internet)':'')+'.</div>';
+  }
+  if(e&&e.t){
+    const a=lyAnalyze(e.t);
+    h+='<h3>Pela letra</h3>';
+    if(a.words.length)h+='<p><b>Palavras mais repetidas:</b> '+a.words.map(eh).join(', ')+'.</p>';
+    if(a.chorus)h+='<p><b>Verso que mais se repete'+(a.times>1?' ('+a.times+'×)':'')+':</b>\n«'+eh(a.chorus)+'»</p>';
+    h+='<div class="src">Análise automática da letra guardada no telemóvel. Não é uma interpretação: só mostra o que mais se repete.</div>';
+  }else{
+    h+='<div class="note">Para ver também as palavras e os versos que mais se repetem, procura primeiro a letra (botão de busca).</div>';
+  }
+  infoBody(h);
+}
+function knowMenu(){
+  if(!cur()){toast('Toca uma música primeiro');return;}
+  sheet('Sabias?',[{label:'Novidades',fn:infoNews},{label:'Sobre',fn:infoAbout}]);
+}
+$('#lknow').innerHTML=ic('bulb')+'<span>Sabias?</span>';
+$('#lknow').onclick=knowMenu;
+$('#linfox').innerHTML=ic('close');$('#linfox').onclick=()=>$('#linfo').classList.remove('show');
+$('#linfo').addEventListener('pointerdown',e=>{if(e.target.id==='linfo')$('#linfo').classList.remove('show');});
 $('#lyrb').innerHTML=ic('lyrics',24);
 $('#lyback').innerHTML=ic('back');$('#lsearch').innerHTML=ic('search');$('#lprint').innerHTML=ic('print');
 $('#lyrb').onclick=openLyrics;
