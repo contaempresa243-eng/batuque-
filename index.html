@@ -506,7 +506,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.6.0';
+const APP_VERSION='1.6.1';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -1397,7 +1397,7 @@ function syncQueue(){
 }
 function loadCur(){
   const t=cur();if(!t)return;
-  if(xfActive&&!xfStarting)xfStop();
+  if((xfActive||xfPrep)&&!xfStarting)xfStop();
   if(curUrl)URL.revokeObjectURL(curUrl);
   curUrl=URL.createObjectURL(t.blob);
   if(eqG.some(g=>g)&&!actx)initEQ();
@@ -1577,44 +1577,89 @@ audio.addEventListener('play',vzKick);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)vzKick();});
 
 
-/* ---------- Mix entre músicas (crossfade) ---------- */
+/* ---------- Mix entre músicas (crossfade) ----------
+   A música atual é copiada para um segundo leitor, já a tocar em silêncio e sincronizado, antes da transição.
+   No momento da troca o leitor principal passa à música seguinte e sobe; a cópia desce. As subidas e descidas
+   usam ganhos do Web Audio (curva de potência constante), que não dependem dos temporizadores da página. */
 const XF_KEY='batuque_xfade';
 let xfade=0;try{xfade=Math.max(0,Math.min(12,parseInt(localStorage.getItem(XF_KEY))||0));}catch(e){}
-let fx=null,fxUrl=null,fxT=0,xfActive=false,xfStarting=false,fxNode=null;
+let fx=null,fxUrl=null,fxNode=null,fxGain=null,mainGain=null,xfPrep=false,xfActive=false,xfStarting=false,xfEndAt=0,xfT=0,xfSkip='';
+const XFN=64,XF_UP=new Float32Array(XFN),XF_DOWN=new Float32Array(XFN);
+for(let i=0;i<XFN;i++){const a=i/(XFN-1)*Math.PI/2;XF_UP[i]=Math.sin(a);XF_DOWN[i]=Math.cos(a);}
+const xfGains=()=>!!(actx&&mainGain&&fxGain&&fxNode);
 function fxEl(){
   if(!fx){fx=new Audio();fx.preload='auto';}
-  if(actx&&eqNodes.length&&!fxNode){try{fxNode=actx.createMediaElementSource(fx);fxNode.connect(eqNodes[0]);}catch(e){}}
+  if(actx&&eqNodes.length&&!fxNode){
+    try{fxNode=actx.createMediaElementSource(fx);fxGain=actx.createGain();fxGain.gain.value=0;fxNode.connect(fxGain);fxGain.connect(eqNodes[0]);}
+    catch(e){fxNode=null;fxGain=null;}
+  }
   return fx;
 }
 function xfStop(){
-  clearInterval(fxT);fxT=0;xfActive=false;
+  clearTimeout(xfT);xfActive=false;xfPrep=false;xfEndAt=0;
   if(fx){try{fx.pause();fx.removeAttribute('src');fx.load();}catch(e){}}
   if(fxUrl){URL.revokeObjectURL(fxUrl);fxUrl=null;}
+  try{
+    if(mainGain){mainGain.gain.cancelScheduledValues(0);mainGain.gain.value=1;}
+    if(fxGain){fxGain.gain.cancelScheduledValues(0);fxGain.gain.value=0;}
+  }catch(e){}
   audio.volume=vol;
 }
-function xfStart(dur){
+function xfPrepare(){
   const t=cur();if(!t)return;
-  xfActive=true;
-  const f=fxEl(),pos=audio.currentTime;
-  fxUrl=URL.createObjectURL(t.blob);f.src=fxUrl;f.volume=vol;
-  f.addEventListener('loadedmetadata',()=>{try{f.currentTime=pos;}catch(e){}f.play().catch(()=>{});},{once:true});
-  xfStarting=true;try{next(true);}finally{xfStarting=false;}
-  audio.volume=0;
-  const t0=performance.now();
-  fxT=setInterval(()=>{
-    const k=Math.min(1,(performance.now()-t0)/(dur*1000));
-    audio.volume=Math.max(0,Math.min(1,vol*k));f.volume=Math.max(0,Math.min(1,vol*(1-k)));
-    if(k>=1)xfStop();
-  },100);
+  if(!actx)initEQ();
+  if(actx&&actx.state==='suspended')actx.resume();
+  const f=fxEl();
+  xfPrep=true;
+  fxUrl=URL.createObjectURL(t.blob);
+  f.src=fxUrl;f.volume=xfGains()?vol:0;
+  f.addEventListener('loadedmetadata',()=>{
+    if(!xfPrep)return;
+    try{f.currentTime=audio.currentTime+.2;}catch(e){}
+    f.play().catch(()=>{});
+    setTimeout(()=>{
+      if(xfPrep&&!f.paused){const d=f.currentTime-audio.currentTime;if(Math.abs(d)>.02&&Math.abs(d)<1){try{f.currentTime-=d;}catch(e){}}}
+    },350);
+  },{once:true});
+}
+function xfStart(dur){
+  const t=cur(),f=fx;if(!t)return;
+  if(!f||f.paused||f.readyState<3){xfSkip=t.id;xfStop();return;}
+  xfActive=true;xfPrep=false;xfStarting=true;
+  if(xfGains()){
+    mainGain.gain.cancelScheduledValues(0);mainGain.gain.value=0;
+    fxGain.gain.cancelScheduledValues(0);fxGain.gain.value=1;
+    try{next(true);}finally{xfStarting=false;}
+    const t0=actx.currentTime+.02;
+    try{mainGain.gain.setValueCurveAtTime(XF_UP,t0,dur);fxGain.gain.setValueCurveAtTime(XF_DOWN,t0,dur);}catch(e){}
+    xfEndAt=t0+dur;
+    xfT=setTimeout(()=>{if(xfActive)xfStop();},(dur+.6)*1000);
+  }else{
+    f.volume=vol;
+    try{next(true);}finally{xfStarting=false;}
+    audio.volume=0;
+    const t0=performance.now();
+    const step=()=>{
+      if(!xfActive)return;
+      const k=Math.min(1,(performance.now()-t0)/(dur*1000)),a=k*Math.PI/2;
+      audio.volume=Math.max(0,Math.min(1,vol*Math.sin(a)));f.volume=Math.max(0,Math.min(1,vol*Math.cos(a)));
+      if(k>=1)xfStop();else xfT=setTimeout(step,50);
+    };
+    step();
+  }
 }
 function xfCheck(){
-  if(!xfade||xfActive||audio.paused||!audio.duration||queue.length<2||repeat===2)return;
-  const d=audio.duration;if(d>1500||d<xfade*2+2)return;
-  const rem=d-audio.currentTime;if(rem>xfade+.3||rem<.6)return;
+  if(xfActive){if(xfEndAt&&actx&&actx.currentTime>xfEndAt+.15)xfStop();return;}
+  if(!xfade||audio.paused||!audio.duration||queue.length<2||repeat===2)return;
+  const t=cur();if(!t||xfSkip===t.id)return;
+  const d=audio.duration;if(d>1500||d<xfade*2+4)return;
   if(!shuffle&&!(qi+1<queue.length||repeat===1))return;
-  xfStart(Math.max(1,Math.min(xfade,rem)));
+  const rem=d-audio.currentTime;
+  if(!xfPrep){if(rem<=xfade+3&&rem>xfade+.6)xfPrepare();}
+  else if(rem<=xfade+.05)xfStart(Math.max(1,Math.min(xfade,rem)));
 }
-audio.addEventListener('pause',()=>{if(xfActive)xfStop();});
+audio.addEventListener('pause',()=>{if(xfActive||xfPrep)xfStop();});
+audio.addEventListener('seeking',()=>{if(xfPrep&&!xfStarting)xfStop();});
 
 /* ---------- Retomar onde parou ---------- */
 const RS_KEY='batuque_resume';
@@ -1750,6 +1795,7 @@ function initEQ(){
     const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
     actx=new AC();
     let prev=actx.createMediaElementSource(audio);
+    mainGain=actx.createGain();prev.connect(mainGain);prev=mainGain;
     eqNodes=EQF.map((f,i)=>{
       const n=actx.createBiquadFilter();
       n.type=i===0?'lowshelf':i===EQF.length-1?'highshelf':'peaking';
