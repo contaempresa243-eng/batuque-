@@ -158,6 +158,45 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:0;border-radiu
 [data-card=glass] .bc::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.3),rgba(255,255,255,0) 42%);pointer-events:none}
 [data-card=neon] .bc{border-radius:calc(18px*var(--k));border:calc(2px*var(--k)) solid var(--yel-d);box-shadow:0 0 calc(16px*var(--k)) var(--yel-d),0 0 calc(44px*var(--k)) color-mix(in srgb,var(--yel-d) 55%,transparent)}
 @media (prefers-reduced-motion:reduce){[data-card=disc] .bc{animation:none}}
+
+#lyrics{position:fixed;inset:0;z-index:25;background:var(--bg);color:var(--tx);display:none;flex-direction:column;max-width:640px;margin:auto}
+#lyrics.show{display:flex}
+#lyrics .lhead{display:flex;align-items:center;gap:6px;padding:calc(10px + env(safe-area-inset-top)) 10px 8px}
+#lyrics .lhead>.ib{color:var(--tx);flex:none}
+#lplayer{flex:1;min-width:0}
+.lpl{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:6px 8px;position:relative;overflow:hidden}
+.lpl .cov{width:38px;height:38px;border-radius:8px;font-size:15px;flex:none}
+.lpl .meta{flex:1;min-width:0}
+.lpl .t{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lpl .a{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lpl .ib{padding:6px;color:var(--tx)}.lpl .ib svg{width:22px;height:22px}
+.lpl .lp svg{width:26px;height:26px}
+.lpl .prog{position:absolute;left:0;bottom:0;height:2px;background:var(--yel);width:0}
+.ltr{display:flex;gap:6px;margin:4px 14px 8px;background:var(--card);border-radius:14px;padding:4px}
+.ltr button{flex:1;padding:9px 6px;border-radius:10px;font-size:14px;font-weight:600;color:var(--mut)}
+.ltr button.on{background:var(--yel);color:var(--onp)}
+#ltitle{padding:4px 18px 6px;font-size:13px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#ltext{flex:1;overflow-y:auto;padding:4px 20px 110px;font-size:17px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
+#ltext .empty{color:var(--mut);text-align:center;padding:40px 10px;font-size:15px;line-height:1.5;white-space:normal}
+#ltext .empty b{display:block;color:var(--tx);font-size:17px;margin-bottom:6px}
+.lfoot{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px;padding:14px 18px calc(16px + env(safe-area-inset-bottom));background:linear-gradient(0deg,var(--bg) 55%,transparent);pointer-events:none}
+.lfoot>*{pointer-events:auto}
+.lbtn{width:60px;height:60px;border-radius:50%;background:var(--yel);color:var(--onp);display:grid;place-items:center;box-shadow:0 6px 18px #0006}
+.lbtn svg{width:28px;height:28px}
+.lbtn.sm{width:46px;height:46px;background:var(--card2);color:var(--tx);justify-self:start}
+.lbtn.sm svg{width:22px;height:22px}
+.lbtn:active{transform:scale(.95)}
+.lbtn.busy{opacity:.6;pointer-events:none}
+#lprintbox{display:none}
+@media print{
+  body.printing>*:not(#lprintbox){display:none!important}
+  body.printing{background:#fff!important}
+  body.printing #lprintbox{display:block!important;color:#000;background:#fff;font:13pt/1.55 Georgia,serif;padding:0}
+  #lprintbox h1{font:700 20pt Georgia,serif;margin:0 0 2pt}
+  #lprintbox h2{font:italic 12pt Georgia,serif;margin:0 0 14pt;color:#444}
+  #lprintbox pre{font:inherit;white-space:pre-wrap;margin:0}
+  #lprintbox .ft{margin-top:18pt;font:9pt sans-serif;color:#888}
+}
 #settings{position:fixed;inset:0;z-index:25;background:var(--bg);display:none;flex-direction:column;max-width:640px;margin:auto}
 #settings.show{display:flex}
 .shead{display:flex;align-items:center;gap:6px;padding:calc(10px + env(safe-area-inset-top)) 10px 10px;border-bottom:1px solid var(--bd)}
@@ -283,7 +322,7 @@ header{position:relative}
 <div id="bgimg"></div>
 <div id="app">
   <header>
-    <div class="top"><h1>Batu<b>que</b></h1><div class="tact"><button class="ib" id="foldb" aria-label="Pastas"></button><button class="ib" id="gridb" aria-label="Modo grelha"></button><button class="ib" id="sortb" aria-label="Organizar"></button></div></div>
+    <div class="top"><h1>Batu<b>que</b></h1><div class="tact"><button class="ib" id="lyrb" aria-label="Letras"></button><button class="ib" id="foldb" aria-label="Pastas"></button><button class="ib" id="gridb" aria-label="Modo grelha"></button><button class="ib" id="sortb" aria-label="Organizar"></button></div></div>
     <div class="bar"></div>
     <input id="q" class="search" type="search" placeholder="Pesquisar músicas ou artistas…">
     <div id="selbar"><button class="ib" id="selx" aria-label="Cancelar seleção"></button><span id="selc"></span><button id="sela">Todas</button><button id="selg">Estilo</button><button id="seld" aria-label="Apagar selecionadas"></button></div>
@@ -327,6 +366,13 @@ header{position:relative}
   </div>
 </div>
 
+<div id="lyrics">
+  <div class="lhead"><button class="ib" id="lback" aria-label="Voltar"></button><div id="lplayer"></div></div>
+  <div class="ltr" id="ltr"><button data-l="orig">Original</button><button data-l="pt">Português</button><button data-l="en">English</button></div>
+  <div id="ltitle"></div>
+  <div id="ltext"></div>
+  <div class="lfoot"><span></span><button class="lbtn" id="lsearch" aria-label="Procurar letra"></button><button class="lbtn sm" id="lprint" aria-label="Imprimir letra"></button></div>
+</div>
 <div id="settings">
   <div class="shead">
     <button class="ib" id="sback" aria-label="Voltar"></button>
@@ -348,6 +394,7 @@ header{position:relative}
 'use strict';
 const $=s=>document.querySelector(s);
 const IC={
+lyrics:'M3 5h12v2H3V5zm0 4h12v2H3V9zm0 4h8v2H3v-2zM19 3v10.55A3.5 3.5 0 1017 17V7h4V3h-2z',search:'M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',print:'M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z',
 play:'M8 5v14l11-7z',pause:'M6 5h4v14H6zm8 0h4v14h-4z',
 next:'M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z',prev:'M6 6h2v12H6zm3.5 6l8.5 6V6z',
 heart:'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z',
@@ -418,7 +465,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.3.8';
+const APP_VERSION='1.4.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Para receber o feedback por email, escreve aqui o teu endereço (fica visível no código da página). */
 const FEEDBACK_EMAIL='infoangomusic9@gmail.com';
@@ -1669,6 +1716,132 @@ function openQueue(){
   if(b)b.scrollIntoView({block:'center'});
 }
 
+
+/* ---------- Letras (procurar, traduzir, imprimir) ---------- */
+const LY_KEY='batuque_lyrics';
+let lyDB={},lyCur=null,lyLang='orig',lyBusy=false;
+try{lyDB=JSON.parse(localStorage.getItem(LY_KEY)||'{}')||{};}catch(e){lyDB={};}
+function lySave(){
+  try{
+    const ks=Object.keys(lyDB);
+    if(ks.length>150){ks.sort((a,b)=>(lyDB[a].ts||0)-(lyDB[b].ts||0)).slice(0,ks.length-150).forEach(k=>delete lyDB[k]);}
+    localStorage.setItem(LY_KEY,JSON.stringify(lyDB));
+  }catch(e){toast('Sem espaço para guardar a letra',3000);}
+}
+const lyClean=t=>(t||'').replace(/\s*[\(\[][^\)\]]*[\)\]]/g,' ').replace(/^\s*\d{1,3}\s*[-–.]\s*/,'').replace(/\s*[-–|]\s*(letra|lyrics|official.*|video.*|áudio.*|audio.*)$/i,'').replace(/\b(official (music )?video|lyric video|letra|lyrics)\b/ig,' ').replace(/\s+/g,' ').trim();
+const lyArtist=a=>/desconhecid/i.test(a||'')?'':(a||'').split(/\s*(?:&|,| feat\.? | ft\.? | e )\s*/i)[0].trim();
+async function lyJson(url){
+  const ac=new AbortController(),to=setTimeout(()=>ac.abort(),12000);
+  try{const r=await fetch(url,{signal:ac.signal});if(!r.ok)return null;return await r.json();}catch(e){return null;}finally{clearTimeout(to);}
+}
+const lyStrip=x=>(x||'').replace(/^\[[^\]]*\]\s*/gm,'').trim();
+async function lyFetch(t){
+  const title=lyClean(t.title),artist=lyArtist(t.artist),E=encodeURIComponent;
+  const pick=a=>{if(!Array.isArray(a))return '';for(const o of a){const x=(o.plainLyrics||lyStrip(o.syncedLyrics)||'').trim();if(x)return x;}return '';};
+  let x='';
+  if(artist){const o=await lyJson('https://lrclib.net/api/get?artist_name='+E(artist)+'&track_name='+E(title));if(o)x=(o.plainLyrics||lyStrip(o.syncedLyrics)||'').trim();}
+  if(!x&&artist)x=pick(await lyJson('https://lrclib.net/api/search?track_name='+E(title)+'&artist_name='+E(artist)));
+  if(!x)x=pick(await lyJson('https://lrclib.net/api/search?q='+E((artist+' '+title).trim())));
+  if(!x&&artist){const o=await lyJson('https://api.lyrics.ovh/v1/'+E(artist)+'/'+E(title));if(o&&o.lyrics)x=o.lyrics.trim();}
+  return x;
+}
+async function lyTranslate(text,lang,prog){
+  const lines=text.split('\n'),chunks=[];let cur='';
+  for(const ln of lines){if((cur+'\n'+ln).length>420&&cur){chunks.push(cur);cur=ln;}else cur=cur?cur+'\n'+ln:ln;}
+  if(cur)chunks.push(cur);
+  const out=[];
+  for(let i=0;i<chunks.length;i++){
+    prog&&prog(i+1,chunks.length);
+    if(!chunks[i].trim()){out.push(chunks[i]);continue;}
+    const o=await lyJson('https://api.mymemory.translated.net/get?q='+encodeURIComponent(chunks[i])+'&langpair=Autodetect|'+lang);
+    const tt=o&&o.responseData&&o.responseData.translatedText;
+    if(!tt)throw new Error('falha');
+    if(/PLEASE SELECT TWO DISTINCT|MYMEMORY WARNING/i.test(tt)){
+      if(/WARNING/i.test(tt))throw new Error('limite');
+      out.push(chunks[i]);
+    }else out.push(tt);
+  }
+  return out.join('\n');
+}
+function lyShownText(){
+  const t=cur();if(!t)return '';const e=lyDB[t.id];if(!e)return '';
+  return lyLang==='orig'?e.t:(e[lyLang]||'');
+}
+function lyRender(msg){
+  const t=cur(),box=$('#ltext');
+  $('#ltr').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.l===lyLang));
+  $('#ltitle').textContent=t?t.title+(t.artist&&!/desconhecid/i.test(t.artist)?' · '+t.artist:''):'';
+  if(msg){box.innerHTML='';const d=document.createElement('div');d.className='empty';d.textContent=msg;box.append(d);return;}
+  if(!t){box.innerHTML='<div class="empty"><b>Sem música a tocar</b>Toca uma música para ver ou procurar a letra.</div>';return;}
+  const x=lyShownText();
+  if(x){box.textContent=x;box.scrollTop=0;return;}
+  const e=lyDB[t.id];
+  box.innerHTML='<div class="empty"><b>'+(e?'Ainda não traduzida':'Letra não encontrada')+'</b>'+(e?'Toca em «Português» ou «English» outra vez para traduzir.':'Toca no botão de busca para procurar a letra desta música. É preciso ter internet.')+'</div>';
+}
+function lyUI(){
+  const t=cur(),pl=$('#lplayer');
+  if(!t){pl.innerHTML='';if(lyCur!==null){lyCur=null;lyRender();}return;}
+  pl.innerHTML=`<div class="lpl"><div class="cov" style="${cover(t)}">${covInner(t)}</div>
+    <div class="meta" id="lpo"><div class="t">${esc(t.title)}</div><div class="a">${esc(t.artist)}</div></div>
+    <button class="ib" id="lpprev">${ic('prev')}</button><button class="ib lp" id="lpplay">${ic(audio.paused?'play':'pause')}</button><button class="ib" id="lpnext">${ic('next')}</button><div class="prog" id="lprog"></div></div>`;
+  $('#lpprev').onclick=prev;$('#lpnext').onclick=()=>next(false);$('#lpplay').onclick=toggle;$('#lpo').onclick=openFull;
+  const d=audio.duration||0;$('#lprog').style.width=d?(audio.currentTime/d*100)+'%':'0';
+  if(t.id!==lyCur){lyCur=t.id;lyLang='orig';lyRender();}
+}
+function openLyrics(){lyCur=null;$('#lyrics').classList.add('show');lyUI();if(!cur())lyRender();}
+async function lySearch(){
+  const t=cur();if(!t){toast('Toca uma música primeiro');return;}
+  if(lyBusy)return;
+  if(navigator.onLine===false){toast('Sem internet: não dá para procurar a letra',3500);return;}
+  lyBusy=true;$('#lsearch').classList.add('busy');lyRender('A procurar a letra…');
+  const id=t.id;let x='';
+  try{x=await lyFetch(t);}catch(e){}
+  lyBusy=false;$('#lsearch').classList.remove('busy');
+  if(x){lyDB[id]={t:x,ts:Date.now()};lySave();lyLang='orig';}
+  if(cur()&&cur().id===id){
+    if(x)lyRender();else lyRender('Não encontrei a letra de «'+t.title+'».\nPode estar com outro nome: renomeia a música com o título e o artista corretos e tenta outra vez.');
+  }
+}
+async function lySetLang(l){
+  const t=cur();if(!t)return;
+  if(l==='orig'){lyLang='orig';lyRender();return;}
+  const e=lyDB[t.id];
+  if(!e){lyLang=l;lyRender();toast('Procura primeiro a letra (botão de busca)',3000);return;}
+  lyLang=l;
+  if(e[l]){lyRender();return;}
+  if(navigator.onLine===false){lyLang='orig';lyRender();toast('Sem internet: não dá para traduzir',3500);return;}
+  if(lyBusy)return;lyBusy=true;
+  const id=t.id;lyRender('A traduzir…');
+  try{
+    const r=await lyTranslate(e.t,l,(i,n)=>{if(lyLang===l&&cur()&&cur().id===id)lyRender('A traduzir… '+i+'/'+n);});
+    e[l]=r;e.ts=Date.now();lySave();
+  }catch(err){toast(err&&err.message==='limite'?'Limite diário de traduções atingido. Tenta amanhã.':'Não foi possível traduzir agora',4000);if(lyLang===l)lyLang='orig';}
+  lyBusy=false;
+  if(cur()&&cur().id===id)lyRender();
+}
+function lyPrint(){
+  const t=cur(),x=lyShownText();
+  if(!t||!x){toast('Não há letra para imprimir',3000);return;}
+  let b=document.getElementById('lprintbox');if(b)b.remove();
+  b=document.createElement('div');b.id='lprintbox';
+  const h1=document.createElement('h1');h1.textContent=t.title;
+  const h2=document.createElement('h2');h2.textContent=(/desconhecid/i.test(t.artist||'')?'':t.artist)+(lyLang==='orig'?'':' · '+(lyLang==='pt'?'Português':'English'));
+  const pre=document.createElement('pre');pre.textContent=x;
+  const ft=document.createElement('div');ft.className='ft';ft.textContent='Batuque';
+  b.append(h1,h2,pre,ft);document.body.append(b);
+  document.body.classList.add('printing');
+  const done=()=>{document.body.classList.remove('printing');b.remove();removeEventListener('afterprint',done);};
+  addEventListener('afterprint',done);
+  setTimeout(()=>{try{window.print();}catch(e){done();}},60);
+}
+$('#lyrb').innerHTML=ic('lyrics',24);
+$('#lback').innerHTML=ic('back');$('#lsearch').innerHTML=ic('search');$('#lprint').innerHTML=ic('print');
+$('#lyrb').onclick=openLyrics;
+$('#lback').onclick=()=>$('#lyrics').classList.remove('show');
+$('#lsearch').onclick=lySearch;$('#lprint').onclick=lyPrint;
+$('#ltr').onclick=e=>{const b=e.target.closest('button');if(b)lySetLang(b.dataset.l);};
+audio.addEventListener('timeupdate',()=>{const p=$('#lprog');if(p){const d=audio.duration||0;p.style.width=d?(audio.currentTime/d*100)+'%':'0';}});
+
 /* ---------- Mini player móvel ---------- */
 let miniPos=null;
 try{miniPos=JSON.parse(localStorage.getItem('batuque_mini'));}catch(e){}
@@ -1764,6 +1937,7 @@ function updateUI(){
     $('#fbg').style.cssText=bu?`background-image:url("${bu}")`:cover(t);
     $('#ffav').className='ib'+(t.fav?' on':'');$('#ffav').innerHTML=ic(t.fav?'heart':'heartO',28);
       }
+  if($('#lyrics').classList.contains('show'))lyUI();
   $('#bplay').innerHTML=ic(audio.paused?'play':'pause');
   $('#full').classList.toggle('playing',!audio.paused&&!!cur());
   $('#bshuf').className='ib'+(shuffle?' act':'');
