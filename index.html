@@ -165,6 +165,12 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:0;border-radiu
 .abl{margin:0 6px 4px;padding-left:20px;font-size:14.5px;line-height:1.5}
 .abl li{margin-bottom:4px}
 a.srow{color:inherit;text-decoration:none}
+.xfh{padding:12px 14px 2px;font-size:12px;letter-spacing:.8px;text-transform:uppercase;color:var(--yel);font-weight:700}
+.xfrow{display:grid;grid-template-columns:84px 1fr 78px;align-items:center;gap:10px;padding:2px 14px}
+.xfrow span{font-size:13px;color:var(--mut)}
+.xfrow output{font-size:13px;text-align:right}
+.xfrow input[type=range]{margin:12px 0}
+.xfhint{padding:0 14px 6px;font-size:12px;color:var(--mut);line-height:1.4}
 #sheet{position:fixed;inset:0;background:#000a;z-index:30;display:none;align-items:flex-end;justify-content:center}
 #sheet.show{display:flex}
 #sheet .box{background:var(--card);width:100%;max-width:640px;border-radius:20px 20px 0 0;padding:12px 8px calc(12px + env(safe-area-inset-bottom));max-height:52dvh;overflow:auto}
@@ -500,7 +506,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.5.3';
+const APP_VERSION='1.6.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -1391,6 +1397,7 @@ function syncQueue(){
 }
 function loadCur(){
   const t=cur();if(!t)return;
+  if(xfActive&&!xfStarting)xfStop();
   if(curUrl)URL.revokeObjectURL(curUrl);
   curUrl=URL.createObjectURL(t.blob);
   if(eqG.some(g=>g)&&!actx)initEQ();
@@ -1421,7 +1428,7 @@ audio.ontimeupdate=()=>{
   if(!seeking)$('#seek').value=d?c/d*1000:0;
   $('#tc').textContent=fmt(c);$('#td').textContent=fmt(d);
   $('#mprog').style.width=d?(c/d*100)+'%':'0';
-  syncPos();saveResume();
+  syncPos();saveResume();xfCheck();
 };
 let posT=0;
 function syncPos(force){
@@ -1568,6 +1575,46 @@ function vzFrame(){
 function vzKick(){if(!vzRaf&&$('#full').classList.contains('show'))vzRaf=requestAnimationFrame(vzFrame);}
 audio.addEventListener('play',vzKick);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)vzKick();});
+
+
+/* ---------- Mix entre músicas (crossfade) ---------- */
+const XF_KEY='batuque_xfade';
+let xfade=0;try{xfade=Math.max(0,Math.min(12,parseInt(localStorage.getItem(XF_KEY))||0));}catch(e){}
+let fx=null,fxUrl=null,fxT=0,xfActive=false,xfStarting=false,fxNode=null;
+function fxEl(){
+  if(!fx){fx=new Audio();fx.preload='auto';}
+  if(actx&&eqNodes.length&&!fxNode){try{fxNode=actx.createMediaElementSource(fx);fxNode.connect(eqNodes[0]);}catch(e){}}
+  return fx;
+}
+function xfStop(){
+  clearInterval(fxT);fxT=0;xfActive=false;
+  if(fx){try{fx.pause();fx.removeAttribute('src');fx.load();}catch(e){}}
+  if(fxUrl){URL.revokeObjectURL(fxUrl);fxUrl=null;}
+  audio.volume=vol;
+}
+function xfStart(dur){
+  const t=cur();if(!t)return;
+  xfActive=true;
+  const f=fxEl(),pos=audio.currentTime;
+  fxUrl=URL.createObjectURL(t.blob);f.src=fxUrl;f.volume=vol;
+  f.addEventListener('loadedmetadata',()=>{try{f.currentTime=pos;}catch(e){}f.play().catch(()=>{});},{once:true});
+  xfStarting=true;try{next(true);}finally{xfStarting=false;}
+  audio.volume=0;
+  const t0=performance.now();
+  fxT=setInterval(()=>{
+    const k=Math.min(1,(performance.now()-t0)/(dur*1000));
+    audio.volume=Math.max(0,Math.min(1,vol*k));f.volume=Math.max(0,Math.min(1,vol*(1-k)));
+    if(k>=1)xfStop();
+  },100);
+}
+function xfCheck(){
+  if(!xfade||xfActive||audio.paused||!audio.duration||queue.length<2||repeat===2)return;
+  const d=audio.duration;if(d>1500||d<xfade*2+2)return;
+  const rem=d-audio.currentTime;if(rem>xfade+.3||rem<.6)return;
+  if(!shuffle&&!(qi+1<queue.length||repeat===1))return;
+  xfStart(Math.max(1,Math.min(xfade,rem)));
+}
+audio.addEventListener('pause',()=>{if(xfActive)xfStop();});
 
 /* ---------- Retomar onde parou ---------- */
 const RS_KEY='batuque_resume';
@@ -1724,14 +1771,18 @@ function openEQ(){
   if(actx.state==='suspended')actx.resume();
   const b=$('#sbox');
   b.innerHTML='<h3>Equalizador</h3><div class="chips">'+Object.keys(EQP).map(k=>`<button class="chip" data-p="${k}">${k}</button>`).join('')+'</div>'
+    +'<div class="xfh">Mix entre músicas</div><div class="xfrow"><span>Transição</span><input type="range" min="0" max="12" step="1" value="'+xfade+'" data-x="1"><output id="xfout"></output></div><div class="xfhint">A música seguinte começa a entrar antes de a atual acabar, como num DJ set. Funciona em listas e pastas; 0 desliga.</div>'
     +EQF.map((f,i)=>`<div class="eqrow"><span>${EQL[i]}</span><input type="range" min="-12" max="12" step="1" value="${eqG[i]}" data-b="${i}"><output>${fmtdb(eqG[i])}</output></div>`).join('');
   const sync=()=>{
     b.querySelectorAll('input[data-b]').forEach((el,i)=>{el.value=eqG[i];el.nextElementSibling.textContent=fmtdb(eqG[i]);});
     b.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',EQP[c.dataset.p].every((v,i)=>v===eqG[i])));
   };
   b.onclick=e=>{const c=e.target.closest('.chip');if(!c)return;eqG=EQP[c.dataset.p].slice();applyEQ();sync();};
-  b.oninput=e=>{const el=e.target;if(el.dataset.b===undefined)return;eqG[+el.dataset.b]=+el.value;applyEQ();sync();};
-  sync();
+  const xo=()=>{$('#xfout').textContent=xfade?xfade+' s':'Desligada';};
+  b.oninput=e=>{const el=e.target;
+    if(el.dataset.x!==undefined){xfade=+el.value;try{localStorage.setItem(XF_KEY,String(xfade));}catch(x){}xo();return;}
+    if(el.dataset.b===undefined)return;eqG[+el.dataset.b]=+el.value;applyEQ();sync();};
+  sync();xo();
   $('#sheet').classList.add('show');
 }
 
