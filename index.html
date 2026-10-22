@@ -178,6 +178,53 @@ a.srow{color:inherit;text-decoration:none}
 #sheet button{display:block;width:100%;text-align:left;padding:10px 14px;font-size:15px;border-radius:10px}
 #sheet button:active{background:var(--card2)}
 #sheet button.danger{color:var(--danger)}
+#mixed{position:fixed;inset:0;z-index:28;background:var(--bg);color:var(--tx);display:none;flex-direction:column;max-width:640px;margin:auto}
+#mixed.show{display:flex}
+#mixed .mxh{display:flex;align-items:center;gap:6px;padding:calc(10px + env(safe-area-inset-top)) 10px 8px}
+#mixed .mxh h2{font-size:19px;margin:0}
+#mixed .mxh .ib{color:var(--tx)}
+#mxbody{flex:1;overflow:auto;padding:4px 14px 16px}
+#mxname{display:block;width:100%;padding:12px 14px;background:var(--card2);color:var(--tx);border:1.5px solid var(--bd);border-radius:12px;font:inherit;font-size:16px;outline:none;margin-bottom:8px}
+#mxname:focus{border-color:var(--yel)}
+#mxsum{font-size:13px;color:var(--mut);margin:2px 2px 12px;line-height:1.4}
+.mxempty{text-align:center;color:var(--mut);padding:36px 12px;font-size:14px;line-height:1.5}
+.mxi{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:10px 12px;margin-bottom:12px}
+.mxt{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.mxt .nm{flex:1;min-width:0}
+.mxt b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mxt small{color:var(--mut);font-size:12px}
+.mxt .ib{padding:6px}
+.mxt .ib svg{width:20px;height:20px}
+.mxt .up svg{transform:rotate(180deg)}
+.mxr{display:grid;grid-template-columns:64px 1fr 44px 34px;align-items:center;gap:6px}
+.mxr span{font-size:13px;color:var(--mut)}
+.mxr output{font-size:13px;text-align:right}
+.mxr input[type=range]{margin:9px 0;width:100%}
+.mxr .pv{padding:5px;color:var(--yel)}
+.mxr .pv svg{width:22px;height:22px}
+.mxr .pv:disabled{opacity:.3}
+.mxx{border-top:1px dashed var(--bd);margin-top:6px;padding-top:4px}
+.mxx span{color:var(--yel)}
+.mxfoot{display:flex;gap:10px;padding:10px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--bd)}
+.mxfoot button{flex:1;padding:13px;border-radius:14px;font-weight:700;font-size:15px;background:var(--card2)}
+.mxfoot button.go{background:var(--yel);color:var(--onp)}
+.mxfoot button:disabled{opacity:.4}
+#sheet .mxbtn{display:block;width:calc(100% - 28px);margin:4px 14px 10px;padding:11px 14px;border-radius:12px;background:var(--card2);color:var(--yel);font-weight:700;font-size:14px;text-align:center}
+#mxprog{position:absolute;inset:0;background:var(--bgo);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:24px;z-index:3}
+#mxprog.show{display:flex}
+#mxprog .pb{width:100%;max-width:320px;background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:20px;text-align:center}
+#mxprog b{display:block;font-size:17px;margin-bottom:4px}
+#mxprog small{display:block;color:var(--mut);font-size:13px;margin-bottom:14px;min-height:18px}
+#mxprog .bar{width:100%;margin:0 0 14px;height:8px;border-radius:99px;background:var(--track);overflow:hidden}
+#mxprog .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--red),var(--yel))}
+#mxprog button{padding:10px 20px;border-radius:12px;background:var(--card2);font-weight:600}
+#sheet .mxp{display:flex;align-items:center;gap:10px}
+#sheet .mxp .ck{flex:none;width:20px;height:20px;border-radius:6px;border:2px solid var(--mut);display:grid;place-items:center}
+#sheet .mxp.on .ck{background:var(--yel);border-color:var(--yel)}
+#sheet .mxp.on .ck::after{content:"✓";color:var(--onp);font-size:13px;font-weight:900}
+#sheet .mxp .tx{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#sheet .mxp small{color:var(--mut);font-size:12px;margin-left:6px}
+#sheet .mxadd{position:sticky;bottom:0;background:var(--yel)!important;color:var(--onp);font-weight:700;text-align:center!important;margin-top:6px}
 #toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:40;opacity:0;pointer-events:none;transition:opacity .25s}
 #toast.show{opacity:1}
 #toast{max-width:88vw;text-align:center;line-height:1.35}
@@ -414,6 +461,12 @@ header{position:relative}
   <div class="lfoot"><button class="lbtn pill" id="lknow" aria-label="Sabias?"></button><button class="lbtn" id="lsearch" aria-label="Procurar letra"></button><button class="lbtn sm" id="lprint" aria-label="Imprimir letra"></button></div>
 </div>
 <div id="linfo"><div class="ib2"><div class="ihead"><h2 id="linfot"></h2><button id="linfox" aria-label="Fechar"></button></div><div class="ibody" id="linfob"></div></div></div>
+<div id="mixed">
+  <div class="mxh"><button class="ib" id="mxback" aria-label="Voltar"></button><h2>Criar mix</h2></div>
+  <div id="mxbody"></div>
+  <div class="mxfoot"><button id="mxadd">+ Músicas</button><button id="mxgo" class="go">Gerar mix</button></div>
+  <div id="mxprog"><div class="pb"><b id="mxpt">A gerar a mix…</b><small id="mxps"></small><div class="bar"><i id="mxpb"></i></div><button id="mxpc">Cancelar</button></div></div>
+</div>
 <div id="settings">
   <div class="shead">
     <button class="ib" id="sback" aria-label="Voltar"></button>
@@ -506,7 +559,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.6.1';
+const APP_VERSION='1.7.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -1315,6 +1368,7 @@ function trackMenu(t,full){
     ];
     if(view.t==='list')it.push(rmList);
   }
+  if(t.mix)it.splice(it.length>2?1:0,0,{label:'Editar mix',fn:()=>mxOpen(t)});
   it.push({label:'Renomear',fn:()=>renameTrack(t)});
   it.push({label:'Apagar da biblioteca',danger:true,fn:()=>delTrack(t)});
   if(full)it.push({label:'Definições',fn:openSettings});
@@ -1817,13 +1871,13 @@ function openEQ(){
   if(actx.state==='suspended')actx.resume();
   const b=$('#sbox');
   b.innerHTML='<h3>Equalizador</h3><div class="chips">'+Object.keys(EQP).map(k=>`<button class="chip" data-p="${k}">${k}</button>`).join('')+'</div>'
-    +'<div class="xfh">Mix entre músicas</div><div class="xfrow"><span>Transição</span><input type="range" min="0" max="12" step="1" value="'+xfade+'" data-x="1"><output id="xfout"></output></div><div class="xfhint">A música seguinte começa a entrar antes de a atual acabar, como num DJ set. Funciona em listas e pastas; 0 desliga.</div>'
+    +'<div class="xfh">Mix entre músicas</div><div class="xfrow"><span>Transição</span><input type="range" min="0" max="12" step="1" value="'+xfade+'" data-x="1"><output id="xfout"></output></div><div class="xfhint">A música seguinte começa a entrar antes de a atual acabar, como num DJ set. Funciona em listas e pastas; 0 desliga.</div><button class="mxbtn" data-mx="1">Criar mix de músicas</button>'
     +EQF.map((f,i)=>`<div class="eqrow"><span>${EQL[i]}</span><input type="range" min="-12" max="12" step="1" value="${eqG[i]}" data-b="${i}"><output>${fmtdb(eqG[i])}</output></div>`).join('');
   const sync=()=>{
     b.querySelectorAll('input[data-b]').forEach((el,i)=>{el.value=eqG[i];el.nextElementSibling.textContent=fmtdb(eqG[i]);});
     b.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',EQP[c.dataset.p].every((v,i)=>v===eqG[i])));
   };
-  b.onclick=e=>{const c=e.target.closest('.chip');if(!c)return;eqG=EQP[c.dataset.p].slice();applyEQ();sync();};
+  b.onclick=e=>{if(e.target.closest('[data-mx]')){mxOpen();return;}const c=e.target.closest('.chip');if(!c)return;eqG=EQP[c.dataset.p].slice();applyEQ();sync();};
   const xo=()=>{$('#xfout').textContent=xfade?xfade+' s':'Desligada';};
   b.oninput=e=>{const el=e.target;
     if(el.dataset.x!==undefined){xfade=+el.value;try{localStorage.setItem(XF_KEY,String(xfade));}catch(x){}xo();return;}
@@ -1886,6 +1940,193 @@ function openQueue(){
   if(b)b.scrollIntoView({block:'center'});
 }
 
+
+/* ---------- Editor de mix (criar uma faixa única a partir de várias músicas) ---------- */
+const MX_KEY='batuque_mixdraft',MX_SR=44100,MX_MAX=45*60;
+let mx={name:'',items:[],editId:null},mxPv=null,mxCancel=false;
+const mxT=s=>{s=Math.max(0,s);const m=Math.floor(s/60),r=s-m*60;return m+':'+(r<10?'0':'')+r.toFixed(1);};
+function mxSave(){try{localStorage.setItem(MX_KEY,JSON.stringify({name:mx.name,items:mx.items}));}catch(e){}}
+function mxXe(k){const a=mx.items,L=i=>a[i].e-a[i].s;return k>=a.length-1?0:Math.max(0,Math.min(a[k].x,L(k)/2,L(k+1)/2));}
+function mxTotal(){let t=0;mx.items.forEach((it,k)=>{t+=it.e-it.s-mxXe(k);});return Math.max(0,t);}
+function mxStopPv(){
+  if(!mxPv)return;
+  try{mxPv.a.pause();}catch(e){}
+  URL.revokeObjectURL(mxPv.url);
+  const b=mxPv.btn;mxPv=null;
+  if(b&&b.isConnected)b.innerHTML=ic('play');
+}
+function mxPreview(btn){
+  const i=+btn.closest('.mxi').dataset.i,it=mx.items[i],kind=btn.dataset.pv,t=byId(it.id);
+  if(!t)return;
+  const same=mxPv&&mxPv.btn===btn;
+  mxStopPv();if(same)return;
+  if(!audio.paused)audio.pause();
+  const a=new Audio(),url=URL.createObjectURL(t.blob);a.src=url;
+  const from=kind==='s'?it.s:Math.max(it.s,it.e-8),to=kind==='s'?Math.min(it.e,it.s+8):it.e;
+  a.onloadedmetadata=()=>{a.currentTime=from;a.play().catch(()=>{});};
+  a.ontimeupdate=()=>{if(a.currentTime>=to)mxStopPv();};
+  a.onended=mxStopPv;
+  mxPv={a,url,btn};btn.innerHTML=ic('pause');
+}
+async function mxDurOf(t){
+  if(t.dur>0)return t.dur;
+  return new Promise(res=>{
+    const a=new Audio(),u=URL.createObjectURL(t.blob);
+    const f=d=>{URL.revokeObjectURL(u);res(d);};
+    a.onloadedmetadata=()=>f(isFinite(a.duration)?a.duration:0);a.onerror=()=>f(0);a.src=u;
+  });
+}
+function mxOpen(t){
+  closeSheet();
+  if(t&&t.mix){
+    mx={name:t.title,items:t.mix.items.filter(i=>byId(i.id)).map(i=>({...i})),editId:t.id};
+    if(mx.items.length<t.mix.items.length)toast('Algumas músicas desta mix já não estão na biblioteca',3500);
+  }else{
+    mx={name:'',items:[],editId:null};
+    try{const d=JSON.parse(localStorage.getItem(MX_KEY)||'null');if(d&&d.items)mx={name:d.name||'',items:d.items.filter(i=>byId(i.id)),editId:null};}catch(e){}
+  }
+  mxRender();$('#mixed').classList.add('show');
+}
+function mxClose(){mxStopPv();$('#mixed').classList.remove('show');}
+function mxSum(){
+  const e=$('#mxsum'),go=$('#mxgo');if(!e)return;
+  const n=mx.items.length,tot=mxTotal();
+  e.textContent=n?n+(n>1?' músicas':' música')+' · duração da mix '+fmt(tot)+' · cerca de '+Math.round(tot*MX_SR*4/1048576)+' MB (WAV)':'';
+  go.disabled=n<1||tot<1;
+}
+function mxRender(){
+  const b=$('#mxbody');
+  let h='<input id="mxname" type="text" maxlength="80" placeholder="Nome da mix" autocomplete="off" value="'+esc(mx.name)+'"><div id="mxsum"></div>';
+  if(!mx.items.length)h+='<div class="mxempty">Escolhe duas ou mais músicas.<br>Depois define onde cada uma começa e acaba, e quanto tempo dura a transição entre elas.</div>';
+  mx.items.forEach((it,k)=>{
+    const t=byId(it.id)||{title:'?',artist:''};
+    h+=`<div class="mxi" data-i="${k}"><div class="mxt"><div class="nm"><b>${k+1}. ${esc(t.title)}</b><small>${esc(t.artist||'')} · ${fmt(it.d)}</small></div>`
+      +`<button class="ib up" data-a="up" aria-label="Subir"${k?'':' disabled style="opacity:.25"'}>${ic('down')}</button>`
+      +`<button class="ib" data-a="dn" aria-label="Descer"${k<mx.items.length-1?'':' disabled style="opacity:.25"'}>${ic('down')}</button>`
+      +`<button class="ib" data-a="rm" aria-label="Remover">${ic('close')}</button></div>`
+      +`<div class="mxr"><span>Início</span><input type="range" min="0" max="${it.d}" step="0.5" value="${it.s}" data-k="s"><output>${mxT(it.s)}</output><button class="pv" data-pv="s" aria-label="Ouvir o início">${ic('play')}</button></div>`
+      +`<div class="mxr"><span>Fim</span><input type="range" min="0" max="${it.d}" step="0.5" value="${it.e}" data-k="e"><output>${mxT(it.e)}</output><button class="pv" data-pv="e" aria-label="Ouvir o fim">${ic('play')}</button></div>`
+      +(k<mx.items.length-1?`<div class="mxr mxx"><span>Transição</span><input type="range" min="0" max="12" step="0.5" value="${it.x}" data-k="x"><output>${it.x?it.x+' s':'Corte'}</output><i></i></div>`:'')
+      +'</div>';
+  });
+  b.innerHTML=h;mxSum();
+}
+$('#mxback').innerHTML=ic('back');
+$('#mxback').onclick=mxClose;
+$('#mxbody').addEventListener('input',e=>{
+  const el=e.target;
+  if(el.id==='mxname'){mx.name=el.value;mxSave();return;}
+  const card=el.closest('.mxi');if(!card||!el.dataset.k)return;
+  const it=mx.items[+card.dataset.i],k=el.dataset.k;let v=+el.value;
+  const rows=card.querySelectorAll('input[type=range]');
+  if(k==='s'){if(v>it.e-1)v=Math.max(0,it.e-1);it.s=v;el.value=v;}
+  else if(k==='e'){if(v<it.s+1)v=Math.min(it.d,it.s+1);it.e=v;el.value=v;}
+  else it.x=v;
+  rows.forEach(r=>{const o=r.nextElementSibling;if(!o)return;o.textContent=r.dataset.k==='x'?(it.x?it.x+' s':'Corte'):mxT(it[r.dataset.k]);});
+  if(mxPv)mxStopPv();
+  mxSave();mxSum();
+});
+$('#mxbody').addEventListener('click',e=>{
+  const pv=e.target.closest('[data-pv]');if(pv){mxPreview(pv);return;}
+  const a=e.target.closest('[data-a]');if(!a||a.disabled)return;
+  const i=+a.closest('.mxi').dataset.i,arr=mx.items;mxStopPv();
+  if(a.dataset.a==='rm')arr.splice(i,1);
+  else{const j=a.dataset.a==='up'?i-1:i+1;if(j<0||j>=arr.length)return;[arr[i],arr[j]]=[arr[j],arr[i]];}
+  mxSave();mxRender();
+});
+function mxPick(){
+  mxStopPv();
+  const sel=new Set(),b=$('#sbox'),list=ordered(tracks).filter(t=>!(t.mix&&mx.editId===t.id));
+  if(!list.length){toast('A biblioteca está vazia');return;}
+  b.innerHTML='<h3>Escolher músicas para a mix</h3>'+list.map(t=>`<button class="mxp" data-id="${t.id}"><span class="ck"></span><span class="tx">${esc(t.title)}<small>${esc(t.artist||'')}</small></span></button>`).join('')+'<button class="mxadd" data-go="1">Adicionar à mix</button>';
+  b.classList.add('qbox');
+  b.onclick=async e=>{
+    const x=e.target.closest('button');if(!x)return;
+    if(x.dataset.go){
+      closeSheet();
+      for(const id of sel){
+        const t=byId(id);if(!t)continue;
+        const d=await mxDurOf(t);
+        if(d<2){toast('Não consegui ler a duração de "'+t.title+'"',3000);continue;}
+        mx.items.push({id,d:Math.round(d*2)/2,s:0,e:Math.floor(d*2)/2,x:Math.min(xfade||4,6)});
+      }
+      mxSave();mxRender();return;
+    }
+    const id=x.dataset.id;if(sel.has(id)){sel.delete(id);x.classList.remove('on');}else{sel.add(id);x.classList.add('on');}
+    b.querySelector('.mxadd').textContent=sel.size?'Adicionar à mix ('+sel.size+')':'Adicionar à mix';
+  };
+  $('#sheet').classList.add('show');
+}
+$('#mxadd').onclick=mxPick;
+async function mxBuild(){
+  const a=mx.items,n=a.length,SR=MX_SR;
+  const L=a.map(i=>Math.round((i.e-i.s)*SR));
+  const X=a.map((_,k)=>Math.round(mxXe(k)*SR));
+  const off=[0];for(let k=1;k<n;k++)off[k]=off[k-1]+L[k-1]-X[k-1];
+  const total=off[n-1]+L[n-1],out=new Int16Array(total*2),dc=new OfflineAudioContext(2,1,SR);
+  const HP=Math.PI/2,EDGE=Math.round(SR*.01);
+  for(let k=0;k<n;k++){
+    if(mxCancel)return null;
+    const t=byId(a[k].id);
+    $('#mxps').textContent=(k+1)+' de '+n+' · '+t.title;
+    $('#mxpb').style.width=(k/n*100)+'%';
+    await new Promise(r=>setTimeout(r,20));
+    let buf=await dc.decodeAudioData(await t.blob.arrayBuffer());
+    const c0=buf.getChannelData(0),c1=buf.numberOfChannels>1?buf.getChannelData(1):c0;
+    const st=Math.round(a[k].s*SR),inX=k>0?X[k-1]:0,ouX=X[k],len=L[k],o=off[k];
+    for(let j=0;j<len;j++){
+      let g=1;
+      if(j<inX)g=Math.sin(j/inX*HP);
+      const r=len-j;
+      if(r<=ouX)g*=Math.cos((1-r/ouX)*HP);
+      if(k===0&&j<EDGE)g*=j/EDGE;
+      if(k===n-1&&r<EDGE)g*=r/EDGE;
+      const p=st+j,idx=(o+j)*2;
+      const l=p<c0.length?c0[p]:0,rr=p<c1.length?c1[p]:0;
+      let v=out[idx]+l*g*32767;out[idx]=v>32767?32767:v<-32768?-32768:v;
+      v=out[idx+1]+rr*g*32767;out[idx+1]=v>32767?32767:v<-32768?-32768:v;
+      if((j&0x7ffff)===0x7ffff){$('#mxpb').style.width=((k+j/len)/n*100)+'%';await new Promise(r=>setTimeout(r));if(mxCancel)return null;}
+    }
+    buf=null;
+  }
+  const bytes=out.length*2,h=new DataView(new ArrayBuffer(44));
+  const ws=(p,s)=>{for(let i=0;i<s.length;i++)h.setUint8(p+i,s.charCodeAt(i));};
+  ws(0,'RIFF');h.setUint32(4,36+bytes,true);ws(8,'WAVE');ws(12,'fmt ');h.setUint32(16,16,true);h.setUint16(20,1,true);h.setUint16(22,2,true);
+  h.setUint32(24,SR,true);h.setUint32(28,SR*4,true);h.setUint16(32,4,true);h.setUint16(34,16,true);ws(36,'data');h.setUint32(40,bytes,true);
+  return{blob:new Blob([h.buffer,out.buffer],{type:'audio/wav'}),dur:total/SR};
+}
+$('#mxgo').onclick=async()=>{
+  mxStopPv();
+  const tot=mxTotal();
+  if(mx.items.length<1||tot<1)return;
+  if(tot>MX_MAX){toast('A mix passa dos '+(MX_MAX/60)+' minutos. Tira algumas músicas ou corta partes.',4000);return;}
+  const mb=Math.round(tot*MX_SR*4/1048576);
+  let name=(mx.name||'').trim();
+  if(!name){name=await askText('Nome da mix','','Mix '+new Date().toLocaleDateString('pt-PT'),'Nome da mix');if(name===null||!name.trim())return;name=name.trim();mx.name=name;}
+  let replace=false;
+  if(mx.editId&&byId(mx.editId))replace=await dlg({title:'Guardar a mix',msg:'Queres substituir a mix que estás a editar ou guardar como uma nova?',ok:'Substituir',cancel:'Guardar nova',icon:'music'});
+  if(!await dlg({title:'Gerar a mix',msg:'Vai ser criada uma faixa de '+fmt(tot)+' (cerca de '+mb+' MB, sem compressão). Mantém o Batuque aberto até acabar.',ok:'Gerar',cancel:'Cancelar',icon:'music'}))return;
+  mxCancel=false;$('#mxpb').style.width='0';$('#mxps').textContent='';$('#mxprog').classList.add('show');
+  if(!audio.paused)audio.pause();
+  let res=null;
+  try{res=await mxBuild();}catch(e){console.error(e);$('#mxprog').classList.remove('show');toast('Não consegui gerar a mix (memória insuficiente ou ficheiro ilegível)',4500);return;}
+  $('#mxprog').classList.remove('show');
+  if(!res){toast('Mix cancelada');return;}
+  const first=byId(mx.items[0].id),fname=name.replace(/[\\/:*?"<>|]/g,'')+'.wav';
+  const f=new File([res.blob],fname,{type:'audio/wav'});
+  const items=mx.items.map(i=>({...i}));
+  let t;
+  if(replace){
+    t=byId(mx.editId);t.title=name;t.blob=f;t.dur=res.dur;t.fname=fname;t.mix={items};
+  }else{
+    t={id:crypto.randomUUID(),title:name,artist:'Mix Batuque',blob:f,added:Date.now(),fav:false,cover:first&&first.cover,coverTried:true,metaTried:true,genre:'Mix',genreTried:true,folder:'',fname,dur:res.dur,mix:{items}};
+  }
+  try{await tx('tracks','readwrite',s=>s.put(t));}catch(e){toast('Sem espaço para guardar a mix',4500);return;}
+  if(!mx.editId){try{localStorage.removeItem(MX_KEY);}catch(e){}}
+  await load();mxClose();
+  toast('Mix "'+name+'" criada e guardada na biblioteca',4000);
+};
+$('#mxpc').onclick=()=>{mxCancel=true;};
 
 /* ---------- Letras (procurar, traduzir, imprimir) ---------- */
 const LY_KEY='batuque_lyrics';
