@@ -151,6 +151,10 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:0;border-radiu
 #linfo .rel{display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd)}
 #linfo .rel img{width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--card2);flex:none}
 #linfo .rel b{display:block;font-size:14.5px}
+#linfo .rel>div{flex:1;min-width:0}
+#linfo .rel .rb{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--card2);color:var(--yel)}
+#linfo .rel .rb svg{width:22px;height:22px}
+#linfo .rel .rb.on{background:var(--yel);color:var(--onp)}
 #linfo .rel small{color:var(--mut);font-size:12.5px}
 #linfo .bio{display:flex;gap:12px;align-items:flex-start}
 #linfo .bio img{width:72px;height:72px;border-radius:14px;object-fit:cover;flex:none}
@@ -559,7 +563,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.7.0';
+const APP_VERSION='1.7.2';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -2298,7 +2302,7 @@ async function itunesReleases(artist){
   o.results.filter(r=>r.trackName&&r.releaseDate&&normTxt(r.artistName).includes(n)).sort((a,b)=>b.releaseDate.localeCompare(a.releaseDate)).forEach(r=>{
     const k=normTxt(r.trackName).replace(/ (remaster|remastered|live|ao vivo|version|versao|edit|radio).*$/,'');
     if(seen.has(k))return;seen.add(k);
-    out.push({n:r.trackName,a:r.collectionName||'',d:r.releaseDate.slice(0,10),i:(r.artworkUrl60||r.artworkUrl100||'')});
+    out.push({n:r.trackName,a:r.collectionName||'',d:r.releaseDate.slice(0,10),i:(r.artworkUrl60||r.artworkUrl100||''),p:r.previewUrl||'',u:r.trackViewUrl||''});
   });
   return out.slice(0,8);
 }
@@ -2340,7 +2344,7 @@ async function infoNews(){
     if(!artist)return;
   }
   infoOpen('Novidades · '+artist);
-  const key='n|'+normTxt(artist),c=infoDB[key];
+  const key='n2|'+normTxt(artist),c=infoDB[key];
   if(c&&c.v&&Date.now()-c.ts<3*864e5){infoRenderNews(artist,c.v);return;}
   if(navigator.onLine===false){if(c&&c.v){infoRenderNews(artist,c.v);return;}infoBody('<div class="wait">Sem internet. As novidades precisam de ligação.</div>');return;}
   infoBody('<div class="wait">A procurar novidades de '+eh(artist)+'…</div>');
@@ -2360,8 +2364,8 @@ function infoRenderNews(artist,v){
     h+='<div class="src">Fonte: Wikipédia'+(v.bio.lang==='en'?' (em inglês)':'')+(v.bio.url?' · <a href="'+eh(v.bio.url)+'" target="_blank" rel="noopener">ler mais</a>':'')+'</div>';
   }
   if(v.rel&&v.rel.length){
-    h+='<h3>Lançamentos mais recentes</h3>'+v.rel.map(r=>'<div class="rel">'+(r.i?'<img src="'+eh(r.i)+'" alt="" loading="lazy">':'<img alt="">')+'<div><b>'+eh(r.n)+'</b><small>'+eh(r.a)+(r.d?' · '+fmtDate(r.d):'')+'</small></div></div>').join('');
-    h+='<div class="src">Fonte: iTunes. Mostra os lançamentos mais recentes encontrados; pode não incluir tudo.</div>';
+    h+='<h3>Lançamentos mais recentes</h3>'+v.rel.map(r=>'<div class="rel">'+(r.i?'<img src="'+eh(r.i)+'" alt="" loading="lazy">':'<img alt="">')+'<div><b>'+eh(r.n)+'</b><small>'+eh(r.a)+(r.d?' · '+fmtDate(r.d):'')+'</small></div>'+(r.p?'<button class="rb" data-pv="'+eh(r.p)+'" aria-label="Ouvir amostra">'+ic('play')+'</button>':'')+'<a class="rb" href="https://www.youtube.com/results?search_query='+encodeURIComponent(artist+' '+r.n)+'" target="_blank" rel="noopener" aria-label="Ouvir no YouTube">'+ic('search')+'</a>'+'</div>').join('');
+    h+='<div class="src">Fonte: iTunes. ▶ toca uma amostra de 30 segundos; a lupa procura a música no YouTube para a ouvires inteira. Pode não incluir tudo.</div>';
   }else h+='<div class="note">Não encontrei lançamentos recentes deste artista.</div>';
   infoBody(h);
 }
@@ -2403,8 +2407,20 @@ function knowMenu(){
 }
 $('#lknow').innerHTML=ic('bulb')+'<span>Sabias?</span>';
 $('#lknow').onclick=knowMenu;
-$('#linfox').innerHTML=ic('close');$('#linfox').onclick=()=>$('#linfo').classList.remove('show');
-$('#linfo').addEventListener('pointerdown',e=>{if(e.target.id==='linfo')$('#linfo').classList.remove('show');});
+
+/* amostras de 30 s dos lançamentos (iTunes) */
+let relA=null,relB=null;
+function relStop(){if(relA){try{relA.pause();}catch(e){}relA=null;}if(relB){relB.classList.remove('on');relB.innerHTML=ic('play');relB=null;}}
+$('#linfob').addEventListener('click',e=>{
+  const b=e.target.closest('[data-pv]');if(!b)return;
+  const same=relB===b;relStop();if(same)return;
+  if(!audio.paused)audio.pause();
+  const a=new Audio(b.dataset.pv);relA=a;relB=b;b.classList.add('on');b.innerHTML=ic('pause');
+  a.onended=relStop;a.onerror=()=>{relStop();toast('Não foi possível tocar a amostra');};
+  a.play().catch(()=>{relStop();toast('Não foi possível tocar a amostra');});
+});
+$('#linfox').innerHTML=ic('close');$('#linfox').onclick=()=>{relStop();$('#linfo').classList.remove('show');};
+$('#linfo').addEventListener('pointerdown',e=>{if(e.target.id==='linfo'){relStop();$('#linfo').classList.remove('show');}});
 $('#lyrb').innerHTML=ic('lyrics',24);
 $('#lyback').innerHTML=ic('back');$('#lsearch').innerHTML=ic('search');$('#lprint').innerHTML=ic('print');
 $('#lyrb').onclick=openLyrics;
