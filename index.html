@@ -273,6 +273,16 @@ a.srow{color:inherit;text-decoration:none}
 #dj .djrec.on{background:var(--danger);color:#fff}
 #dj .djrec.on i{background:#fff;animation:djblink 1s ease-in-out infinite}
 @keyframes djblink{50%{opacity:.25}}
+.dkj{display:flex;gap:5px}
+.dkj button{flex:1;height:32px;border-radius:9px;background:var(--card2);font-size:12.5px;font-weight:800}
+.dkj button:active{background:var(--yel);color:var(--onp)}
+.dkc4{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.dkc4 button{height:40px;border-radius:10px;background:var(--card2);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;color:var(--mut);touch-action:manipulation}
+.dkc4 button b{font-size:13px}
+.dkc4 button small{font-size:9.5px;font-variant-numeric:tabular-nums;min-height:11px}
+.dkc4 button.on{color:#fff}
+.dkc4 button:nth-child(1).on{background:#d6303f}.dkc4 button:nth-child(2).on{background:#e08a00}.dkc4 button:nth-child(3).on{background:#2e9e4d}.dkc4 button:nth-child(4).on{background:#2f7fd8}
+.dkc4 button:active{transform:scale(.95)}
 .dkp{display:flex;gap:5px}
 .dkp button{flex:1;height:30px;border-radius:9px;background:var(--card2);font-size:12px;font-weight:700;color:var(--mut)}
 .dkp button.on{background:var(--red);color:#fff}
@@ -661,7 +671,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.11.0';
+const APP_VERSION='1.12.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -2133,7 +2143,7 @@ function djMix(){
 }
 function djLoadDeck(d,t){
   if(d.url)URL.revokeObjectURL(d.url);
-  d.url=URL.createObjectURL(t.blob);d.t=t;d.cue=0;d.loop=null;djAnalyze(d,t);
+  d.url=URL.createObjectURL(t.blob);d.t=t;d.cue=0;d.loop=null;djAnalyze(d,t);djHcUI(d);
   d.el.src=d.url;d.el.playbackRate=1+d.rate;
   d.root.querySelectorAll('.dkp button').forEach(b=>b.classList.remove('on'));
   const c=d.root.querySelector('.dkc');c.style.cssText=cover(t);c.innerHTML=covInner(t);
@@ -2198,6 +2208,50 @@ function djBpmUI(d){
   if(a.bpm&&b.bpm){const ea=a.bpm*(1+a.rate),eb=b.bpm*(1+b.rate),df=Math.abs(ea-eb);sy.textContent='A '+ea.toFixed(1)+' · B '+eb.toFixed(1)+' BPM · diferença '+df.toFixed(1);sy.style.color=df<=1?'var(--yel)':'';}
   else sy.textContent='';
 }
+
+/* ---------- Pontos de cue (4 por música, ficam guardados) e saltos de batida ---------- */
+let hcDB={};try{hcDB=JSON.parse(localStorage.getItem('batuque_hotcues')||'{}')||{};}catch(e){hcDB={};}
+function hcSave(){try{const k=Object.keys(hcDB);if(k.length>300)k.slice(0,k.length-300).forEach(x=>delete hcDB[x]);localStorage.setItem('batuque_hotcues',JSON.stringify(hcDB));}catch(e){}}
+function djHcUI(d){
+  const a=(d.t&&hcDB[d.t.id])||[];
+  d.root.querySelectorAll('.dkc4 button').forEach((b,i)=>{
+    const v=a[i],on=typeof v==='number';
+    b.classList.toggle('on',on);
+    b.innerHTML='<b>'+(i+1)+'</b><small>'+(on?fmt(v):'')+'</small>';
+  });
+}
+function djWireCues(d){
+  const q=s=>d.root.querySelectorAll(s);
+  q('.dkj button').forEach(b=>b.onclick=()=>{
+    if(!d.t)return;
+    if(!d.bpm){toast(d.busy?'Espera pela análise da batida':'Sem BPM detetado nesta música',2400);return;}
+    const n=+b.dataset.j,el=d.el,dur=el.duration||0;
+    el.currentTime=Math.max(0,Math.min(dur?dur-.05:1e9,el.currentTime+n*60/d.bpm));
+  });
+  q('.dkc4 button').forEach(b=>{
+    const i=+b.dataset.h;let tm=null,fired=false;
+    b.addEventListener('pointerdown',()=>{
+      fired=false;clearTimeout(tm);
+      tm=setTimeout(()=>{
+        if(!d.t)return;const a=hcDB[d.t.id];
+        if(a&&typeof a[i]==='number'){a[i]=null;if(a.every(v=>typeof v!=='number'))delete hcDB[d.t.id];hcSave();djHcUI(d);fired=true;if(navigator.vibrate)try{navigator.vibrate(25);}catch(e){}toast('Ponto de cue '+(i+1)+' apagado',1500);}
+      },600);
+    });
+    const up=()=>clearTimeout(tm);
+    b.addEventListener('pointerleave',up);b.addEventListener('pointercancel',up);
+    b.addEventListener('pointerup',()=>{
+      clearTimeout(tm);if(fired||!d.t)return;
+      const a=hcDB[d.t.id]||(hcDB[d.t.id]=[null,null,null,null]);
+      if(typeof a[i]==='number'){
+        d.el.currentTime=a[i];
+        if(d.el.paused){if(dj.ctx.state==='suspended')dj.ctx.resume();d.el.play().catch(()=>{});}
+      }else{
+        a[i]=Math.round(d.el.currentTime*100)/100;hcSave();djHcUI(d);
+        if(navigator.vibrate)try{navigator.vibrate(12);}catch(e){}
+      }
+    });
+  });
+}
 function djPick(d){
   if(!tracks.length){toast('A biblioteca está vazia');return;}
   const items=ordered(tracks).map(t=>({label:t.title+(t.artist?' — '+t.artist:''),fn:()=>djLoadDeck(d,t)}));
@@ -2234,6 +2288,10 @@ function djBuild(){
       <div class="dkbpm"><span class="bd"></span><span class="bv">—</span><small class="bs"></small></div>
       <div class="dkb"><button class="cue">CUE</button><button class="sy">SYNC</button><button class="pl">${ic('play')}</button></div>
       <div class="dkp"><button data-l="2">2 s</button><button data-l="4">4 s</button><button data-l="8">8 s</button></div>
+      <div class="dkfx">Saltar batidas</div>
+      <div class="dkj"><button data-j="-4">◂ 4</button><button data-j="-1">◂ 1</button><button data-j="1">1 ▸</button><button data-j="4">4 ▸</button></div>
+      <div class="dkfx">Pontos de cue</div>
+      <div class="dkc4"><button data-h="0"></button><button data-h="1"></button><button data-h="2"></button><button data-h="3"></button></div>
       <div class="dkf"><div><div class="f0"></div><small>Agudos</small></div><div><div class="f1"></div><small>Médios</small></div><div><div class="f2"></div><small>Graves</small></div><div><div class="dkv"><div class="f3"></div><div class="mt"><i></i></div></div><small>Volume</small></div></div>
       <div class="dkr"><small>Veloc.</small><div class="sp"></div><output>0%</output></div>
       <div class="dkfx">Efeitos</div>
@@ -2256,6 +2314,7 @@ function djBuild(){
     d.fxR=djFader(q('.fxr'),{vert:0,min:0,max:1,val:0,def:0,cb:v=>{d.rS.gain.setTargetAtTime(v*1.7,dj.ctx.currentTime,.02);q('.orv').textContent=v>.03?Math.round(v*100)+'%':'Off';}});
     q('.dkh').onclick=()=>djPick(d);
     q('.sy').onclick=()=>djSync(d);
+    djWireCues(d);djHcUI(d);
     q('.pl').onclick=()=>{if(!d.t){djPick(d);return;}d.el.paused?(ctx.state==='suspended'&&ctx.resume(),d.el.play().catch(()=>{})):d.el.pause();};
     q('.cue').onclick=()=>{
       if(!d.t)return;
