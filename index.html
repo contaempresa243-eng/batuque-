@@ -266,6 +266,13 @@ a.srow{color:inherit;text-decoration:none}
 .dkbpm .bd.on{background:var(--yel);box-shadow:0 0 8px var(--yel)}
 .dkbpm small{color:var(--mut);font-weight:600;font-size:11px}
 #djsy{text-align:center;font-size:12px;color:var(--mut);margin-top:2px;min-height:15px}
+.dkb button.sy{flex:none;width:58px;font-size:12px;color:var(--mut)}
+.dkb button.sy.on{background:var(--red);color:#fff}
+#dj .djrec{display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;background:var(--card2);font-weight:800;font-size:13px}
+#dj .djrec i{width:12px;height:12px;border-radius:50%;background:var(--danger)}
+#dj .djrec.on{background:var(--danger);color:#fff}
+#dj .djrec.on i{background:#fff;animation:djblink 1s ease-in-out infinite}
+@keyframes djblink{50%{opacity:.25}}
 .dkp{display:flex;gap:5px}
 .dkp button{flex:1;height:30px;border-radius:9px;background:var(--card2);font-size:12px;font-weight:700;color:var(--mut)}
 .dkp button.on{background:var(--red);color:#fff}
@@ -556,7 +563,7 @@ header{position:relative}
   <div id="mxprog"><div class="pb"><b id="mxpt">A gerar a mix…</b><small id="mxps"></small><div class="bar"><i id="mxpb"></i></div><button id="mxpc">Cancelar</button></div></div>
 </div>
 <div id="dj">
-  <div class="djh"><button class="ib" id="djback" aria-label="Voltar"></button><h2>Mini DJ</h2></div>
+  <div class="djh"><button class="ib" id="djback" aria-label="Voltar"></button><h2>Mini DJ</h2><button class="djrec" id="djrec" aria-label="Gravar a mistura"><i></i><span>Gravar</span></button></div>
   <div id="djdecks"></div>
   <div id="djx"><div class="lb"><span>A</span><span>Mistura</span><span>B</span></div><div class="fd h" id="djcf"></div><div id="djsy"></div></div>
 </div>
@@ -652,7 +659,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.9.1';
+const APP_VERSION='1.10.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -2211,7 +2218,7 @@ function djBuild(){
     d.root.innerHTML=`<div class="dkh"><span class="dkl">${id.toUpperCase()}</span><div class="dkc">♪</div><div class="dkt"><b>Escolher música</b><small>toca para carregar</small></div></div>
       <div class="dks"><i></i></div><div class="dkm"><span class="tc">0:00</span><span class="td">-0:00</span></div>
       <div class="dkbpm"><span class="bd"></span><span class="bv">—</span><small class="bs"></small></div>
-      <div class="dkb"><button class="cue">CUE</button><button class="pl">${ic('play')}</button></div>
+      <div class="dkb"><button class="cue">CUE</button><button class="sy">SYNC</button><button class="pl">${ic('play')}</button></div>
       <div class="dkp"><button data-l="2">2 s</button><button data-l="4">4 s</button><button data-l="8">8 s</button></div>
       <div class="dkf"><div><div class="f0"></div><small>Agudos</small></div><div><div class="f1"></div><small>Médios</small></div><div><div class="f2"></div><small>Graves</small></div><div><div class="dkv"><div class="f3"></div><div class="mt"><i></i></div></div><small>Volume</small></div></div>
       <div class="dkr"><small style="color:var(--mut);font-size:10px">Veloc.</small><div class="sp"></div><output>0%</output></div>`;
@@ -2219,8 +2226,9 @@ function djBuild(){
     const q=s=>d.root.querySelector(s);
     d.eqF=DJ_EQ.map((_,i)=>djFader(q('.f'+i),{vert:1,min:-12,max:12,val:0,def:0,cb:v=>{d.eq[i].gain.value=v;}}));
     d.volF=djFader(q('.f3'),{vert:1,min:0,max:1,val:d.vol,def:.9,cb:v=>{d.vol=v;djMix();}});
-    d.spF=djFader(q('.sp'),{vert:0,min:-.12,max:.12,val:0,def:0,cb:v=>{d.rate=Math.round(v*200)/200;d.el.playbackRate=1+d.rate;q('output').textContent=(d.rate>0?'+':'')+Math.round(d.rate*100)+'%';djBpmUI(d);}});
+    d.spF=djFader(q('.sp'),{vert:0,min:-.12,max:.12,val:0,def:0,cb:v=>{d.rate=Math.round(v*1000)/1000;d.el.playbackRate=1+d.rate;q('output').textContent=(d.rate>0?'+':'')+(d.rate*100).toFixed(1).replace(/\.0$/,'')+'%';d.sync=false;q('.sy').classList.remove('on');djBpmUI(d);}});
     q('.dkh').onclick=()=>djPick(d);
+    q('.sy').onclick=()=>djSync(d);
     q('.pl').onclick=()=>{if(!d.t){djPick(d);return;}d.el.paused?(ctx.state==='suspended'&&ctx.resume(),d.el.play().catch(()=>{})):d.el.pause();};
     q('.cue').onclick=()=>{
       if(!d.t)return;
@@ -2264,8 +2272,72 @@ function djTick(){
     d.lv=Math.max(m,(d.lv||0)*.88);
     q('.mt i').style.height=Math.min(100,d.lv*130)+'%';
   });
+  if(djRec)$('#djrec span').textContent=fmt(djRec.n/djRec.sr);
   dj.raf=requestAnimationFrame(djTick);
 }
+
+/* alinha as batidas: move o prato d para cair no mesmo ponto da batida do prato o (repete até ficar certo, porque cada salto demora uns milissegundos) */
+function djAlign(d,o,n){
+  if(n>3||!d.sync||d.el.paused||o.el.paused)return;
+  const fr=x=>x-Math.floor(x);
+  const fo=fr((o.el.currentTime-o.beat0)/(60/o.bpm)),fd=fr((d.el.currentTime-d.beat0)/(60/d.bpm));
+  let df=fo-fd;if(df>.5)df-=1;if(df<-.5)df+=1;
+  if(Math.abs(df)<.02&&n>0)return;
+  const lead=n>0?0:0.04;
+  d.el.addEventListener('seeked',()=>setTimeout(()=>djAlign(d,o,n+1),120),{once:true});
+  d.el.currentTime=Math.max(0,d.el.currentTime+(df+(n===0?0:0))*(60/d.bpm)+lead*d.el.playbackRate);
+}
+function djSync(d){
+  const o=dj.decks[d===dj.decks[0]?1:0];
+  if(!d.bpm||!o.bpm){toast(d.busy||o.busy?'Espera pela análise das batidas':'Carrega e analisa as duas músicas primeiro',2800);return;}
+  const target=o.bpm*(1+o.rate);let best=null,mul=1;
+  [[1,1],[2,2],[.5,.5]].forEach(([m,k])=>{const r=target*m/d.bpm-1;if(Math.abs(r)<=.12&&(best===null||Math.abs(r)<Math.abs(best))){best=r;mul=k;}});
+  if(best===null){toast('A diferença de BPM é grande demais (máximo ±12%)',3200);return;}
+  d.rate=best;d.el.playbackRate=1+best;d.spF.set(best);
+  const q=s=>d.root.querySelector(s);
+  q('output').textContent=(best>0?'+':'')+(best*100).toFixed(1)+'%';
+  d.sync=true;q('.sy').classList.add('on');
+  if(mul===1&&!o.el.paused&&!d.el.paused)djAlign(d,o,0);
+  djBpmUI(d);
+  toast('Sincronizado a '+(d.bpm*(1+d.rate)).toFixed(1)+' BPM',2200);
+}
+/* gravar a mistura: guarda o som da mesa (os dois pratos) como uma música nova na biblioteca */
+let djRec=null;
+function djRecToggle(){
+  if(!dj)return;
+  if(djRec){djRecStop();return;}
+  const ctx=dj.ctx;
+  if(ctx.state==='suspended')ctx.resume();
+  const sp=ctx.createScriptProcessor(4096,2,2),z=ctx.createGain();z.gain.value=0;
+  const r={sp,z,chunks:[],n:0,sr:ctx.sampleRate};
+  sp.onaudioprocess=e=>{
+    const l=e.inputBuffer.getChannelData(0),rr=e.inputBuffer.numberOfChannels>1?e.inputBuffer.getChannelData(1):l,o=new Int16Array(l.length*2);
+    for(let i=0;i<l.length;i++){let a=l[i],b=rr[i];a=a>1?1:a<-1?-1:a;b=b>1?1:b<-1?-1:b;o[2*i]=a*32767;o[2*i+1]=b*32767;}
+    r.chunks.push(o);r.n+=l.length;
+    if(r.n>r.sr*60*30)djRecStop();
+  };
+  dj.master.connect(sp);sp.connect(z);z.connect(ctx.destination);
+  djRec=r;$('#djrec').classList.add('on');$('#djrec span').textContent='0:00';
+}
+async function djRecStop(){
+  const r=djRec;if(!r)return;djRec=null;
+  try{dj.master.disconnect(r.sp);r.sp.disconnect();r.z.disconnect();}catch(e){}
+  r.sp.onaudioprocess=null;
+  $('#djrec').classList.remove('on');$('#djrec span').textContent='Gravar';
+  const secs=r.n/r.sr;
+  if(secs<2){toast('Gravação demasiado curta');return;}
+  const bytes=r.n*4,h=new DataView(new ArrayBuffer(44));
+  const ws=(p,t)=>{for(let i=0;i<t.length;i++)h.setUint8(p+i,t.charCodeAt(i));};
+  ws(0,'RIFF');h.setUint32(4,36+bytes,true);ws(8,'WAVE');ws(12,'fmt ');h.setUint32(16,16,true);h.setUint16(20,1,true);h.setUint16(22,2,true);
+  h.setUint32(24,r.sr,true);h.setUint32(28,r.sr*4,true);h.setUint16(32,4,true);h.setUint16(34,16,true);ws(36,'data');h.setUint32(40,bytes,true);
+  const d=new Date(),pad=n=>String(n).padStart(2,'0');
+  const name='Mix DJ '+pad(d.getDate())+'-'+pad(d.getMonth()+1)+' '+pad(d.getHours())+'h'+pad(d.getMinutes());
+  const fname=name+'.wav',f=new File([h.buffer,...r.chunks],fname,{type:'audio/wav'});
+  const t={id:crypto.randomUUID(),title:name,artist:'Mini DJ',blob:f,added:Date.now(),fav:false,cover:null,coverTried:true,metaTried:true,genre:'Mix',genreTried:true,folder:'',fname,dur:secs};
+  try{await tx('tracks','readwrite',s=>s.put(t));await load();toast('Mistura guardada na biblioteca: '+name,4000);}
+  catch(e){toast('Sem espaço para guardar a gravação',4500);}
+}
+$('#djrec').onclick=djRecToggle;
 function djOpen(){
   closeSheet();
   if(!audio.paused)audio.pause();
@@ -2274,6 +2346,7 @@ function djOpen(){
   $('#dj').classList.add('show');cancelAnimationFrame(dj.raf);djTick();
 }
 function djClose(){
+  if(djRec)djRecStop();
   $('#dj').classList.remove('show');
   if(!dj)return;
   cancelAnimationFrame(dj.raf);
