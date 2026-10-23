@@ -261,6 +261,11 @@ a.srow{color:inherit;text-decoration:none}
 .dkb button svg{width:24px;height:24px}
 .dkb button.pl{background:var(--yel);color:var(--onp)}
 .dkb button:active{transform:scale(.96)}
+.dkbpm{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;min-height:18px;font-variant-numeric:tabular-nums}
+.dkbpm .bd{width:10px;height:10px;border-radius:50%;background:var(--track);flex:none}
+.dkbpm .bd.on{background:var(--yel);box-shadow:0 0 8px var(--yel)}
+.dkbpm small{color:var(--mut);font-weight:600;font-size:11px}
+#djsy{text-align:center;font-size:12px;color:var(--mut);margin-top:2px;min-height:15px}
 .dkp{display:flex;gap:5px}
 .dkp button{flex:1;height:30px;border-radius:9px;background:var(--card2);font-size:12px;font-weight:700;color:var(--mut)}
 .dkp button.on{background:var(--red);color:#fff}
@@ -553,7 +558,7 @@ header{position:relative}
 <div id="dj">
   <div class="djh"><button class="ib" id="djback" aria-label="Voltar"></button><h2>Mini DJ</h2></div>
   <div id="djdecks"></div>
-  <div id="djx"><div class="lb"><span>A</span><span>Mistura</span><span>B</span></div><div class="fd h" id="djcf"></div></div>
+  <div id="djx"><div class="lb"><span>A</span><span>Mistura</span><span>B</span></div><div class="fd h" id="djcf"></div><div id="djsy"></div></div>
 </div>
 <div id="settings">
   <div class="shead">
@@ -647,7 +652,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.9.0';
+const APP_VERSION='1.9.1';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -2119,11 +2124,69 @@ function djMix(){
 }
 function djLoadDeck(d,t){
   if(d.url)URL.revokeObjectURL(d.url);
-  d.url=URL.createObjectURL(t.blob);d.t=t;d.cue=0;d.loop=null;
+  d.url=URL.createObjectURL(t.blob);d.t=t;d.cue=0;d.loop=null;djAnalyze(d,t);
   d.el.src=d.url;d.el.playbackRate=1+d.rate;
   d.root.querySelectorAll('.dkp button').forEach(b=>b.classList.remove('on'));
   const c=d.root.querySelector('.dkc');c.style.cssText=cover(t);c.innerHTML=covInner(t);
   d.root.querySelector('.dkt b').textContent=t.title;d.root.querySelector('.dkt small').textContent=t.artist||'';
+}
+
+/* ---------- Deteção de batida (BPM) ---------- */
+let bpmDB={};try{bpmDB=JSON.parse(localStorage.getItem('batuque_bpm')||'{}')||{};}catch(e){bpmDB={};}
+function bpmSave(){try{const k=Object.keys(bpmDB);if(k.length>400)k.slice(0,k.length-400).forEach(x=>delete bpmDB[x]);localStorage.setItem('batuque_bpm',JSON.stringify(bpmDB));}catch(e){}}
+function bpmDetect(buf){
+  const sr=buf.sampleRate,n=buf.length,ch=buf.numberOfChannels;
+  const segLen=Math.min(n,Math.floor(80*sr)),st=n>segLen?Math.floor((n-segLen)*.4):0;
+  const hop=Math.max(8,Math.round(sr/344.5)),nf=Math.floor(segLen/hop);
+  if(nf<800)return null;
+  const c0=buf.getChannelData(0),c1=ch>1?buf.getChannelData(1):c0,env=new Float32Array(nf);
+  const a=1-Math.exp(-2*Math.PI*150/sr);let l1=0,l2=0;
+  for(let f=0;f<nf;f++){let e=0;const b=st+f*hop;for(let i=0;i<hop;i++){const x=(c0[b+i]+c1[b+i])*.5;l1+=a*(x-l1);l2+=a*(l1-l2);e+=l2*l2;}env[f]=Math.sqrt(e/hop);}
+  const on=new Float32Array(nf);let mean=0;
+  for(let f=1;f<nf;f++){const d=env[f]-env[f-1];on[f]=d>0?d:0;mean+=on[f];}
+  mean/=nf;for(let f=0;f<nf;f++)on[f]=Math.max(0,on[f]-mean*.8);
+  const rate=sr/hop,lmin=Math.floor(60/180*rate),lmax=Math.ceil(60/70*rate)*2+2;
+  const ac=new Float32Array(lmax+2);
+  for(let l=lmin;l<=lmax&&l<nf-10;l++){let sum=0;for(let f=0;f+l<nf;f++)sum+=on[f]*on[f+l];ac[l]=sum/(nf-l);}
+  let best=0,bs=0;
+  for(let l=Math.floor(60/175*rate);l<=Math.ceil(60/75*rate);l++){
+    const bpm=60*rate/l,w=Math.exp(-.5*Math.pow(Math.log2(bpm/118)/.8,2));
+    const sc=(ac[l]+.5*(ac[l*2]||0)+.25*(ac[l*3]||0))*w;
+    if(sc>bs){bs=sc;best=l;}
+  }
+  if(!best)return null;
+  let L=best;const y0=ac[best-1],y1=ac[best],y2=ac[best+1],dn=y0-2*y1+y2;
+  if(dn<0)L=best+.5*(y0-y2)/dn;
+  let bpm=60*rate/L;
+  let mx=0,sm=0,cnt=0;for(let l=lmin;l<=lmax;l++){sm+=ac[l];cnt++;if(ac[l]>mx)mx=ac[l];}
+  const conf=mx/(sm/cnt||1);
+  const P=Math.round(L);let bo=0,bv=-1;
+  for(let o=0;o<P;o++){let v=0;for(let k=0;;k++){const i=Math.round(o+k*L);if(i>=nf)break;v+=on[i];}if(v>bv){bv=v;bo=o;}}
+  return{bpm:Math.round(bpm*10)/10,beat0:(st+bo*hop)/sr,conf};
+}
+async function djAnalyze(d,t){
+  const tok=++d.tok;d.bpm=0;d.busy=true;djBpmUI(d);
+  const c=bpmDB[t.id];
+  if(c){d.bpm=c[0];d.beat0=c[1];d.busy=false;djBpmUI(d);return;}
+  try{
+    const oc=new OfflineAudioContext(1,1,22050);
+    let buf=await oc.decodeAudioData(await t.blob.arrayBuffer());
+    if(tok!==d.tok)return;
+    await new Promise(r=>setTimeout(r,20));
+    const r=bpmDetect(buf);buf=null;
+    if(tok!==d.tok)return;
+    if(r){d.bpm=r.bpm;d.beat0=r.beat0;bpmDB[t.id]=[r.bpm,r.beat0];bpmSave();}
+  }catch(e){}
+  if(tok===d.tok){d.busy=false;djBpmUI(d);}
+}
+function djBpmUI(d){
+  const q=s=>d.root.querySelector(s);
+  q('.bv').textContent=d.busy?'a analisar…':d.bpm?d.bpm.toFixed(1)+' BPM':'—';
+  const eff=d.bpm?d.bpm*(1+d.rate):0;
+  q('.bs').textContent=d.bpm&&d.rate?'→ '+eff.toFixed(1):'';
+  const [a,b]=dj.decks,sy=$('#djsy');
+  if(a.bpm&&b.bpm){const ea=a.bpm*(1+a.rate),eb=b.bpm*(1+b.rate),df=Math.abs(ea-eb);sy.textContent='A '+ea.toFixed(1)+' · B '+eb.toFixed(1)+' BPM · diferença '+df.toFixed(1);sy.style.color=df<=1?'var(--yel)':'';}
+  else sy.textContent='';
 }
 function djPick(d){
   if(!tracks.length){toast('A biblioteca está vazia');return;}
@@ -2137,7 +2200,7 @@ function djBuild(){
   dj={ctx,master,x:.5,decks:[],raf:0};
   const wrap=$('#djdecks');wrap.innerHTML='';
   ['a','b'].forEach(id=>{
-    const d={id,t:null,url:null,vol:.9,rate:0,cue:0,loop:null,root:document.createElement('div')};
+    const d={id,t:null,url:null,vol:.9,rate:0,cue:0,loop:null,bpm:0,beat0:0,tok:0,busy:false,root:document.createElement('div')};
     d.el=new Audio();d.el.preload='auto';d.el.preservesPitch=false;d.el.webkitPreservesPitch=false;
     const src=ctx.createMediaElementSource(d.el);
     d.eq=DJ_EQ.map(([n,type,f])=>{const b=ctx.createBiquadFilter();b.type=type;b.frequency.value=f;if(type==='peaking')b.Q.value=.9;return b;});
@@ -2147,6 +2210,7 @@ function djBuild(){
     d.root.className='dk';
     d.root.innerHTML=`<div class="dkh"><span class="dkl">${id.toUpperCase()}</span><div class="dkc">♪</div><div class="dkt"><b>Escolher música</b><small>toca para carregar</small></div></div>
       <div class="dks"><i></i></div><div class="dkm"><span class="tc">0:00</span><span class="td">-0:00</span></div>
+      <div class="dkbpm"><span class="bd"></span><span class="bv">—</span><small class="bs"></small></div>
       <div class="dkb"><button class="cue">CUE</button><button class="pl">${ic('play')}</button></div>
       <div class="dkp"><button data-l="2">2 s</button><button data-l="4">4 s</button><button data-l="8">8 s</button></div>
       <div class="dkf"><div><div class="f0"></div><small>Agudos</small></div><div><div class="f1"></div><small>Médios</small></div><div><div class="f2"></div><small>Graves</small></div><div><div class="dkv"><div class="f3"></div><div class="mt"><i></i></div></div><small>Volume</small></div></div>
@@ -2155,7 +2219,7 @@ function djBuild(){
     const q=s=>d.root.querySelector(s);
     d.eqF=DJ_EQ.map((_,i)=>djFader(q('.f'+i),{vert:1,min:-12,max:12,val:0,def:0,cb:v=>{d.eq[i].gain.value=v;}}));
     d.volF=djFader(q('.f3'),{vert:1,min:0,max:1,val:d.vol,def:.9,cb:v=>{d.vol=v;djMix();}});
-    d.spF=djFader(q('.sp'),{vert:0,min:-.12,max:.12,val:0,def:0,cb:v=>{d.rate=Math.round(v*200)/200;d.el.playbackRate=1+d.rate;q('output').textContent=(d.rate>0?'+':'')+Math.round(d.rate*100)+'%';}});
+    d.spF=djFader(q('.sp'),{vert:0,min:-.12,max:.12,val:0,def:0,cb:v=>{d.rate=Math.round(v*200)/200;d.el.playbackRate=1+d.rate;q('output').textContent=(d.rate>0?'+':'')+Math.round(d.rate*100)+'%';djBpmUI(d);}});
     q('.dkh').onclick=()=>djPick(d);
     q('.pl').onclick=()=>{if(!d.t){djPick(d);return;}d.el.paused?(ctx.state==='suspended'&&ctx.resume(),d.el.play().catch(()=>{})):d.el.pause();};
     q('.cue').onclick=()=>{
@@ -2193,6 +2257,8 @@ function djTick(){
       q('.dks i').style.width=(el.currentTime/dur*100)+'%';
       q('.tc').textContent=fmt(el.currentTime);q('.td').textContent='-'+fmt((dur-el.currentTime)/(el.playbackRate||1));
     }
+    const bd=q('.bd');
+    if(d.bpm&&!el.paused){const per=60/d.bpm,ph=(el.currentTime-d.beat0)/per,fr=ph-Math.floor(ph);bd.classList.toggle('on',fr<.16);}else bd.classList.remove('on');
     let m=0;
     if(!el.paused){d.an.getByteTimeDomainData(d.buf);for(let i=0;i<d.buf.length;i++){const v=Math.abs(d.buf[i]-128)/128;if(v>m)m=v;}}
     d.lv=Math.max(m,(d.lv||0)*.88);
