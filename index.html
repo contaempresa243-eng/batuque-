@@ -575,7 +575,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.7.5';
+const APP_VERSION='1.7.6';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -2336,6 +2336,33 @@ async function wikiSong(title,artist){
   return null;
 }
 const STOP=new Set(('a o as os um uma uns umas de do da dos das em no na nos nas por pra para com sem sob sobre e ou mas que se me te lhe nos vos meu minha meus minhas teu tua teus tuas seu sua seus suas eu tu ele ela nós voce você vocês eles elas isso isto esse essa este esta aquele aquela ja já nao não so só mais muito muita tao tão como quando onde ser estar foi era vai vou tem tenho ter ha há the and you your yours but for with that this have has had was were are not its just like all out what when who how why from they them their there here then than into over about will would could should been being does did got get let make one two cause oh yeah hey ooh uh la na dont cant youre'.split(' ')));
+
+/* Resumo automático do tema da letra (sem internet nem IA: conta palavras-chave de cada assunto) */
+const LY_THEMES=[
+ ['amor e paixão',/\b(amor|amo|amar|amado|amada|apaixon\w*|paixao|beij\w*|coracao|namor\w*|querida|querido|love|loving|heart|kiss\w*|baby|amour|corazon|te quiero|te amo)\b/g],
+ ['saudade e distância',/\b(saudade\w*|falta|ausencia|longe|distancia|distante|lembr\w*|memoria\w*|miss|missing|remember|lejos|extrano|extra[nñ]o)\b/g],
+ ['dor, tristeza e desamor',/\b(dor|doi|chor\w*|lagrima\w*|sofr\w*|traic\w*|magoa\w*|triste\w*|adeus|perd\w*|solidao|sozinh\w*|sozinho|cry\w*|pain|tears|broken|goodbye|alone|lonely|llorar|dolor)\b/g],
+ ['festa e diversão',/\b(festa\w*|danc\w*|balada|bebid\w*|cerveja|balanc\w*|rebol\w*|curtir|curtic\w*|party|dance|dancing|drink\w*|club|fiesta|bailar|baile)\b/g],
+ ['desejo e sedução',/\b(desej\w*|corpo|pele|boca|sedu\w*|quente|calor|body|desire|touch|skin|lips|deseo|cuerpo)\b/g],
+ ['fé e espiritualidade',/\b(deus|senhor|jesus|fe|oracao|orar|ceu|anjo\w*|gloria|abenco\w*|god|lord|pray\w*|heaven|angel\w*|dios)\b/g],
+ ['vida, sonhos e superação',/\b(vida|sonho\w*|vencer|vitoria|lutar|luta|forca|esperanca|caminho|futuro|dream\w*|life|fight\w*|hope|strong|win|vida|sue[nñ]o)\b/g],
+ ['a terra e o povo',/\b(terra|povo|patria|pais|angola|luanda|africa|bairro|favela|cidade|minha gente|land|people|country|home)\b/g],
+ ['dinheiro e sucesso',/\b(dinheiro|grana|rico|riqueza|ouro|fama|sucesso|carro|money|rich|gold|cash|dinero)\b/g]
+];
+const LY_POS=/\b(feliz\w*|alegr\w*|sorri\w*|rir|riso|lindo|linda|bonito|bonita|maravilh\w*|sol|luz|brilh\w*|paixao|apaixon\w*|beij\w*|happy|smile|beautiful|sun|light|shine|joy|good)\b/g;
+const LY_NEG=/\b(dor|chor\w*|lagrima\w*|sofr\w*|triste\w*|adeus|perd\w*|solidao|sozinh\w*|saudade\w*|traic\w*|magoa\w*|morr\w*|morte|noite escura|cry\w*|pain|tears|broken|alone|lonely|die|dead|dark)\b/g;
+function lySummary(text){
+  const n=normTxt(text);if(n.length<40)return null;
+  const sc=LY_THEMES.map(([name,re])=>[name,(n.match(re)||[]).length]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
+  const top=sc.filter((x,i)=>i<3&&x[1]>=Math.max(2,sc[0][1]*.35)).map(x=>x[0]);
+  const pos=(n.match(LY_POS)||[]).length,neg=(n.match(LY_NEG)||[]).length;
+  let mood='';
+  if(pos+neg>=3)mood=neg>pos*1.4?'melancólico e emotivo':pos>neg*1.4?'alegre e caloroso':'misto, com momentos de alegria e de tristeza';
+  if(!top.length)return null;
+  let t='Pela letra, a música parece falar sobre '+(top.length>1?top.slice(0,-1).join(', ')+' e '+top[top.length-1]:top[0])+'.';
+  if(mood)t+=' O tom é '+mood+'.';
+  return t;
+}
 function lyAnalyze(text){
   const lines=text.split('\n').map(x=>x.trim()).filter(Boolean);
   const cnt=new Map(),orig=new Map();
@@ -2407,9 +2434,14 @@ async function infoAbout(){
   if(e&&e.t){
     const a=lyAnalyze(e.t);
     h+='<h3>Pela letra</h3>';
+    const sm=lySummary(e.t);
+    if(sm){
+      const ls=e.t.split('\n').map(x=>x.trim()).filter(x=>x.length>12);
+      h+='<p><b>Em resumo:</b> '+eh(sm)+(a.chorus?' A ideia que mais volta é «'+eh(a.chorus)+'».':'')+(ls.length?' Começa assim: «'+eh(ls.slice(0,2).join(' / '))+'».':'')+'</p>';
+    }else h+='<p>Não consegui perceber o assunto só pelas palavras da letra.</p>';
     if(a.words.length)h+='<p><b>Palavras mais repetidas:</b> '+a.words.map(eh).join(', ')+'.</p>';
     if(a.chorus)h+='<p><b>Verso que mais se repete'+(a.times>1?' ('+a.times+'×)':'')+':</b>\n«'+eh(a.chorus)+'»</p>';
-    h+='<div class="src">Análise automática da letra guardada no telemóvel. Não é uma interpretação: só mostra o que mais se repete.</div>';
+    h+='<div class="src">Resumo automático feito no telemóvel a partir das palavras da letra guardada. É uma estimativa: não entende o sentido profundo nem a história da música.</div>';
   }else{
     h+='<div class="note">Para ver também as palavras e os versos que mais se repetem, procura primeiro a letra (botão de busca).</div>';
   }
