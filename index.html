@@ -295,6 +295,8 @@ a.srow{color:inherit;text-decoration:none}
 .dkv .mt i{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(0deg,#3ddc6a,var(--yel) 70%,var(--red))}
 .dkr{display:flex;align-items:center;gap:6px}
 .dkr .fd{flex:1}
+.dkfx{font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--yel);font-weight:800;margin-top:2px}
+.dkr small{flex:none;min-width:38px;font-size:10px;color:var(--mut)}
 .dkr output{flex:none;font-size:11px;min-width:40px;text-align:right;color:var(--mut)}
 #djx{padding:8px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--bd)}
 #djx .lb{display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:var(--yel);margin-bottom:2px}
@@ -659,7 +661,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.10.0';
+const APP_VERSION='1.11.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -2187,6 +2189,7 @@ async function djAnalyze(d,t){
   if(tok===d.tok){d.busy=false;djBpmUI(d);}
 }
 function djBpmUI(d){
+  if(d.dly)d.dly.delayTime.setTargetAtTime(Math.min(1.9,d.bpm?60/(d.bpm*(1+d.rate))*.75:.375),dj.ctx.currentTime,.05);
   const q=s=>d.root.querySelector(s);
   q('.bv').textContent=d.busy?'a analisar…':d.bpm?d.bpm.toFixed(1)+' BPM':'—';
   const eff=d.bpm?d.bpm*(1+d.rate):0;
@@ -2205,6 +2208,9 @@ function djBuild(){
   const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
   const ctx=new AC(),master=ctx.createGain();master.gain.value=.85;master.connect(ctx.destination);
   dj={ctx,master,x:.5,decks:[],raf:0};
+  {const len=Math.floor(ctx.sampleRate*2.2),b=ctx.createBuffer(2,len,ctx.sampleRate);
+   for(let c=0;c<2;c++){const a=b.getChannelData(c);for(let i=0;i<len;i++)a[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.6);}
+   dj.rev=b;}
   const wrap=$('#djdecks');wrap.innerHTML='';
   ['a','b'].forEach(id=>{
     const d={id,t:null,url:null,vol:.9,rate:0,cue:0,loop:null,bpm:0,beat0:0,tok:0,busy:false,root:document.createElement('div')};
@@ -2212,7 +2218,15 @@ function djBuild(){
     const src=ctx.createMediaElementSource(d.el);
     d.eq=DJ_EQ.map(([n,type,f])=>{const b=ctx.createBiquadFilter();b.type=type;b.frequency.value=f;if(type==='peaking')b.Q.value=.9;return b;});
     d.gain=ctx.createGain();d.an=ctx.createAnalyser();d.an.fftSize=512;
-    let prev=src;d.eq.forEach(b=>{prev.connect(b);prev=b;});prev.connect(d.gain);d.gain.connect(master);d.gain.connect(d.an);
+    d.hp=ctx.createBiquadFilter();d.hp.type='highpass';d.hp.frequency.value=10;d.hp.Q.value=.8;
+    d.lp=ctx.createBiquadFilter();d.lp.type='lowpass';d.lp.frequency.value=22000;d.lp.Q.value=.8;
+    d.dly=ctx.createDelay(2);d.dly.delayTime.value=.375;d.fb=ctx.createGain();d.fb.gain.value=.5;d.dS=ctx.createGain();d.dS.gain.value=0;
+    d.rv=ctx.createConvolver();d.rv.buffer=dj.rev;d.rS=ctx.createGain();d.rS.gain.value=0;
+    let prev=src;d.eq.forEach(b=>{prev.connect(b);prev=b;});
+    prev.connect(d.hp);d.hp.connect(d.lp);d.lp.connect(d.gain);
+    d.lp.connect(d.dS);d.dS.connect(d.dly);d.dly.connect(d.fb);d.fb.connect(d.dly);d.dly.connect(d.gain);
+    d.lp.connect(d.rS);d.rS.connect(d.rv);d.rv.connect(d.gain);
+    d.gain.connect(master);d.gain.connect(d.an);
     d.buf=new Uint8Array(d.an.fftSize);
     d.root.className='dk';
     d.root.innerHTML=`<div class="dkh"><span class="dkl">${id.toUpperCase()}</span><div class="dkc">♪</div><div class="dkt"><b>Escolher música</b><small>toca para carregar</small></div></div>
@@ -2221,12 +2235,25 @@ function djBuild(){
       <div class="dkb"><button class="cue">CUE</button><button class="sy">SYNC</button><button class="pl">${ic('play')}</button></div>
       <div class="dkp"><button data-l="2">2 s</button><button data-l="4">4 s</button><button data-l="8">8 s</button></div>
       <div class="dkf"><div><div class="f0"></div><small>Agudos</small></div><div><div class="f1"></div><small>Médios</small></div><div><div class="f2"></div><small>Graves</small></div><div><div class="dkv"><div class="f3"></div><div class="mt"><i></i></div></div><small>Volume</small></div></div>
-      <div class="dkr"><small style="color:var(--mut);font-size:10px">Veloc.</small><div class="sp"></div><output>0%</output></div>`;
+      <div class="dkr"><small>Veloc.</small><div class="sp"></div><output>0%</output></div>
+      <div class="dkfx">Efeitos</div>
+      <div class="dkr"><small>Filtro</small><div class="fxf"></div><output class="of">Off</output></div>
+      <div class="dkr"><small>Eco</small><div class="fxe"></div><output class="oe">Off</output></div>
+      <div class="dkr"><small>Reverb</small><div class="fxr"></div><output class="orv">Off</output></div>`;
     wrap.appendChild(d.root);dj.decks.push(d);
     const q=s=>d.root.querySelector(s);
     d.eqF=DJ_EQ.map((_,i)=>djFader(q('.f'+i),{vert:1,min:-12,max:12,val:0,def:0,cb:v=>{d.eq[i].gain.value=v;}}));
     d.volF=djFader(q('.f3'),{vert:1,min:0,max:1,val:d.vol,def:.9,cb:v=>{d.vol=v;djMix();}});
     d.spF=djFader(q('.sp'),{vert:0,min:-.12,max:.12,val:0,def:0,cb:v=>{d.rate=Math.round(v*1000)/1000;d.el.playbackRate=1+d.rate;q('output').textContent=(d.rate>0?'+':'')+(d.rate*100).toFixed(1).replace(/\.0$/,'')+'%';d.sync=false;q('.sy').classList.remove('on');djBpmUI(d);}});
+    d.fxF=djFader(q('.fxf'),{vert:0,min:-1,max:1,val:0,def:0,cb:v=>{
+      if(Math.abs(v)<.04){v=0;}
+      const t=dj.ctx.currentTime;
+      d.lp.frequency.setTargetAtTime(v<0?22000*Math.pow(150/22000,-v):22000,t,.02);
+      d.hp.frequency.setTargetAtTime(v>0?10*Math.pow(3000/10,v):10,t,.02);
+      d.lp.Q.value=d.hp.Q.value=v?2.2:.8;
+      q('.of').textContent=v?(v<0?'Grave ':'Agudo ')+Math.round(Math.abs(v)*100)+'%':'Off';}});
+    d.fxE=djFader(q('.fxe'),{vert:0,min:0,max:1,val:0,def:0,cb:v=>{d.dS.gain.setTargetAtTime(v*.85,dj.ctx.currentTime,.02);q('.oe').textContent=v>.03?Math.round(v*100)+'%':'Off';}});
+    d.fxR=djFader(q('.fxr'),{vert:0,min:0,max:1,val:0,def:0,cb:v=>{d.rS.gain.setTargetAtTime(v*1.7,dj.ctx.currentTime,.02);q('.orv').textContent=v>.03?Math.round(v*100)+'%':'Off';}});
     q('.dkh').onclick=()=>djPick(d);
     q('.sy').onclick=()=>djSync(d);
     q('.pl').onclick=()=>{if(!d.t){djPick(d);return;}d.el.paused?(ctx.state==='suspended'&&ctx.resume(),d.el.play().catch(()=>{})):d.el.pause();};
