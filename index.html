@@ -262,6 +262,19 @@ a.srow{color:inherit;text-decoration:none}
 .lpl .ib{padding:6px;color:var(--tx)}.lpl .ib svg{width:22px;height:22px}
 .lpl .lp svg{width:26px;height:26px}
 .lpl .prog{position:absolute;left:0;bottom:0;height:2px;background:var(--yel);width:0}
+#lyrics .lhead{position:relative;justify-content:center}
+#lyrics .lhead>.ib{position:absolute;left:10px;top:calc(12px + env(safe-area-inset-top));z-index:2;background:#0009;border-radius:50%;color:#fff}
+#lplayer{flex:none}
+.lpl{display:block;width:150px;height:150px;padding:0;border-radius:20px}
+.lpl .cov{position:absolute;inset:0;width:100%;height:100%;border-radius:0;font-size:46px;cursor:pointer}
+.lpl::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,#000b 0,#0000 38%,#0000 52%,#000c 100%)}
+.lpl .meta{position:absolute;left:10px;right:10px;top:8px;z-index:2;color:#fff}
+.lpl .t{font-size:13px;color:#fff;text-shadow:0 1px 3px #000}
+.lpl .a{font-size:11.5px;color:#ddd;text-shadow:0 1px 3px #000}
+.lpl .lpc{position:absolute;left:0;right:0;bottom:4px;z-index:2;display:flex;justify-content:center;align-items:center;gap:2px}
+.lpl .ib{color:#fff}
+.lpl .prog{z-index:3;height:3px}
+
 .ltr{display:flex;gap:6px;margin:4px 14px 8px;background:var(--card);border-radius:14px;padding:4px}
 .ltr button{flex:1;padding:9px 6px;border-radius:10px;font-size:14px;font-weight:600;color:var(--mut)}
 .ltr button.on{background:var(--yel);color:var(--onp)}
@@ -562,7 +575,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.7.3';
+const APP_VERSION='1.7.5';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -636,15 +649,14 @@ const fsOn=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
 const fsWant=()=>{try{return localStorage.getItem(FS_KEY)==='1';}catch(e){return false;}};
 const fsSet=v=>{try{if(v)localStorage.setItem(FS_KEY,'1');else localStorage.removeItem(FS_KEY);}catch(e){}};
 const isApp=()=>{try{return matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;}catch(e){return false;}};
-const fsReq=()=>{if(isApp())return Promise.resolve();const el=document.documentElement,f=el.requestFullscreen||el.webkitRequestFullscreen;return f?f.call(el):Promise.reject();};
+const fsReq=()=>{const el=document.documentElement,f=el.requestFullscreen||el.webkitRequestFullscreen;return f?f.call(el):Promise.reject();};
 async function toggleFS(){
   try{
-    if(fsWant()||fsOn()){
-      fsSet(false);
-      if(fsOn())await (document.exitFullscreen||document.webkitExitFullscreen).call(document);
+    if(fsOn()){
+      await (document.exitFullscreen||document.webkitExitFullscreen).call(document);
     }else{
       if(!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen)){toast('O teu navegador não suporta o modo ecrã cheio');return;}
-      await fsReq();fsSet(true);
+      await fsReq();
     }
   }catch(e){toast('Não foi possível mudar o modo ecrã cheio');}
   if($('#settings').classList.contains('show')&&sv==='main')renderSettings();
@@ -805,7 +817,7 @@ function renderSettings(){
     h+=`<div class="sgroup">Ecrã</div>
     <button class="srow" data-go="theme"><span class="si">${ic('palette')}</span><span class="st"><b>Tema</b><small>Paleta de cores, galeria e estilo do cartão</small></span>${ic('chev')}</button>
     <div class="srow"><span class="si">${ic('contrast')}</span><span class="st"><b>Aparência</b><small>Escuro, claro ou predefinido (segue o sistema)</small></span><div class="seg">${modes.map(([k,n])=>`<button data-mode="${k}" class="${CFG.mode===k?'on':''}">${n}</button>`).join('')}</div></div>
-    <button class="srow" data-act="fs"><span class="si">${ic('fullscreen')}</span><span class="st"><b>Modo ecrã cheio</b><small>Esconde a barra do navegador · instala a app para não ver o aviso do Chrome</small></span><span class="sw${fsWant()||fsOn()?' on':''}"></span></button>
+    <button class="srow" data-act="fs"><span class="si">${ic('fullscreen')}</span><span class="st"><b>Modo ecrã cheio</b><small>Esconde as barras do telemóvel · o Chrome mostra um aviso ao entrar</small></span><span class="sw${fsOn()?' on':''}"></span></button>
     <div class="sgroup">Dados</div>
     <button class="srow" data-act="bkexp"><span class="si">${ic('down')}</span><span class="st"><b>Guardar cópia de segurança</b><small>Listas, favoritos, estatísticas e definições num ficheiro</small></span>${ic('chev')}</button>
     <button class="srow" data-act="bkimp"><span class="si">${ic('refresh')}</span><span class="st"><b>Restaurar cópia de segurança</b><small>Escolhe um ficheiro .batuque guardado antes</small></span>${ic('chev')}</button>
@@ -2200,7 +2212,7 @@ function lyUI(){
   if(!t){pl.innerHTML='';if(lyCur!==null){lyCur=null;lyRender();}return;}
   pl.innerHTML=`<div class="lpl"><div class="cov" style="${cover(t)}">${covInner(t)}</div>
     <div class="meta" id="lpo"><div class="t">${esc(t.title)}</div><div class="a">${esc(t.artist)}</div></div>
-    <button class="ib" id="lpprev">${ic('prev')}</button><button class="ib lp" id="lpplay">${ic(audio.paused?'play':'pause')}</button><button class="ib" id="lpnext">${ic('next')}</button><div class="prog" id="lprog"></div></div>`;
+    <div class="lpc"><button class="ib" id="lpprev">${ic('prev')}</button><button class="ib lp" id="lpplay">${ic(audio.paused?'play':'pause')}</button><button class="ib" id="lpnext">${ic('next')}</button></div><div class="prog" id="lprog"></div></div>`;
   $('#lpprev').onclick=prev;$('#lpnext').onclick=()=>next(false);$('#lpplay').onclick=toggle;$('#lpo').onclick=openFull;pl.querySelector('.cov').onclick=openFull;
   const d=audio.duration||0;$('#lprog').style.width=d?(audio.currentTime/d*100)+'%':'0';
   if(t.id!==lyCur){lyCur=t.id;lyLang='orig';lyRender();}
