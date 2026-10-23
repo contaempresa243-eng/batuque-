@@ -73,6 +73,8 @@ main{flex:1;overflow-y:auto;padding:4px 12px 90px}
 #mini.mc.sl{border-radius:0 16px 16px 0;border-left:0}
 #mini.mc.sr{border-radius:16px 0 0 16px;border-right:0}
 #mini .prog{position:absolute;left:0;bottom:0;height:2px;background:var(--yel);width:0}
+img{-webkit-touch-callout:none;-webkit-user-drag:none;user-select:none;-webkit-user-select:none}
+.cov img,#full img,#lplayer img,.row img,.lcard img{pointer-events:none}
 nav{display:flex;border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom);background:var(--bg)}
 nav button{flex:1;padding:10px 0 8px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--mut)}
 nav button.on{color:var(--yel)}
@@ -585,7 +587,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.7.8';
+const APP_VERSION='1.7.9';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -1363,6 +1365,7 @@ $('#selx').onclick=()=>endSel();$('#sela').onclick=selAll;$('#seld').onclick=del
   m.addEventListener('scroll',stop,{passive:true});
   m.addEventListener('contextmenu',e=>{if(e.target.closest('.row'))e.preventDefault();});
 })();
+document.addEventListener('contextmenu',e=>{if(e.target.tagName==='IMG'||e.target.closest('.row,.cov,#full,#mini,#lplayer'))e.preventDefault();},true);
 
 /* ---------- Menus ---------- */
 function sheet(title,items){
