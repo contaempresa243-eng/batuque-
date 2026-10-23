@@ -383,8 +383,7 @@ button.srow:active{background:var(--card2)}
 .fcard .cov{width:100%;height:auto;aspect-ratio:16/10;border-radius:12px;background:linear-gradient(135deg,var(--red),color-mix(in srgb,var(--red) 45%,#000))}
 .fcard .meta{flex:none}
 .lcard[data-folder],.fcard[data-folder]{position:relative}
-.fplay{outline:2px solid var(--yel);outline-offset:-2px;background:color-mix(in srgb,var(--yel) 9%,var(--card))!important}
-.fbadge{position:absolute;display:flex;align-items:flex-end;gap:2px;padding:5px 9px;border-radius:999px;background:var(--yel);color:var(--onp);font-size:11px;font-weight:800;line-height:1;pointer-events:none}
+.fbadge{position:absolute;display:flex;align-items:flex-end;gap:2px;padding:5px 4px;color:var(--yel);text-shadow:0 1px 3px #000c;font-size:12px;font-weight:800;line-height:1;pointer-events:none}.fcard .fbadge{color:#fff}
 .lcard .fbadge{right:12px;top:50%;margin-top:-13px}
 .fcard .fbadge{right:20px;top:20px}
 .fbadge i{display:block;width:3px;height:10px;border-radius:2px;background:currentColor;transform-origin:bottom;animation:fbar .8s ease-in-out infinite}
@@ -586,7 +585,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.7.7';
+const APP_VERSION='1.7.8';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
