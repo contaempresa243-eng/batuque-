@@ -422,7 +422,6 @@ header{position:relative}
   <div id="mini"><div class="prog" id="mprog"></div></div>
   <nav>
     <button data-v="lib"></button>
-    <button data-v="fav"></button>
     <button data-v="stats"></button>
     <button data-v="lists"></button>
     <button id="navset" aria-label="Definições"></button>
@@ -563,7 +562,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.7.2';
+const APP_VERSION='1.7.3';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -1199,7 +1198,7 @@ function rowHTML(t,i){
 function render(){
   const m=$('#main');let h='';
   document.querySelectorAll('nav button').forEach(b=>{
-    const v=b.dataset.v;b.classList.toggle('on',v===view.t||(v==='lists'&&view.t==='list')||(v==='lib'&&(view.t==='folders'||view.t==='folder')));
+    const v=b.dataset.v;b.classList.toggle('on',v===view.t||(v==='lists'&&(view.t==='list'||view.t==='fav'))||(v==='lib'&&(view.t==='folders'||view.t==='folder')));
   });
   const noTools=view.t==='lists'||view.t==='stats';
   $('#fab').style.display=noTools?'none':'grid';
@@ -1214,6 +1213,7 @@ function render(){
   if(view.t==='lists'){
     h+=`<div class="head2"><h2>As tuas listas</h2><button class="btn alt" id="newlist" style="margin:0;padding:9px 16px">+ Nova</button></div>`;
     if(!lists.length)h+=`<div class="empty">${ic('list')}Ainda não tens listas.<br>Cria uma para organizar as tuas músicas.</div>`;
+    h+=`<div class="lcard" data-favs="1"><div class="cov">${ic('heart',22)}</div><div class="meta"><div class="t">Favoritos</div><div class="a">${tracks.filter(t=>t.fav).length} músicas</div></div></div>`;
     lists.forEach(l=>{
       h+=`<div class="lcard" data-list="${l.id}"><div class="cov">${ic('music',22)}</div>
       <div class="meta"><div class="t">${esc(l.name)}</div><div class="a">${l.ids.filter(byId).length} músicas</div></div></div>`;
@@ -1243,7 +1243,7 @@ function render(){
       const l=lists.find(x=>x.id===view.id);
       h+=`<div class="head2"><button class="ib" id="lback">${ic('back')}</button><h2>${esc(l?l.name:'')}</h2>
       <button class="ib" id="lmore">${ic('more')}</button></div>`;
-    }else if(view.t==='fav')h+=`<div class="head2"><h2>Favoritos</h2></div>`;
+    }else if(view.t==='fav')h+=`<div class="head2"><button class="ib" id="favback" aria-label="Voltar">${ic('back')}</button><h2>Favoritos</h2></div>`;
     const arr=visible();
     if(!arr.length){
       if(view.t==='lib'&&!tracks.length)h+=`<div class="empty">${ic('music')}A tua biblioteca está vazia.<br>Toca no <b style="color:var(--yel)">+</b> para adicionar músicas ou uma pasta do telemóvel.${drumsSVG()}</div>`;
@@ -1260,6 +1260,7 @@ function render(){
   const sb=$('#fsback');if(sb)sb.onclick=()=>{view={t:'lib'};search='';$('#q').value='';render();$('#main').scrollTop=0;};
   const fb=$('#fdback');if(fb)fb.onclick=()=>{view={t:'folders'};search='';$('#q').value='';render();};
   const fm=$('#fdmore');if(fm)fm.onclick=folderMenu;
+  const fvb=$('#favback');if(fvb)fvb.onclick=()=>{view={t:'lists'};search='';$('#q').value='';render();};
   const lb=$('#lback');if(lb)lb.onclick=()=>{view={t:'lists'};render();};
   const lm=$('#lmore');if(lm)lm.onclick=listMenu;
   const pa=$('#playall');if(pa)pa.onclick=()=>{const a=visible();if(a.length)play(a.map(t=>t.id),0,$('#main h2')?.textContent,{k:'list',id:view.id,f:false});};
@@ -1270,6 +1271,7 @@ $('#main').addEventListener('click',e=>{
   if(sk){const ids=(sk.dataset.q||'').split(',').filter(byId),id=sk.dataset.stid;if(byId(id)){play(ids.length?ids:[id],Math.max(0,ids.indexOf(id)),'Mais ouvidas',{k:'stats',f:true});}return;}
   const fc=e.target.closest('[data-folder]');
   if(fc){view={t:'folder',name:decodeURIComponent(fc.dataset.folder)};search='';$('#q').value='';render();$('#main').scrollTop=0;return;}
+  if(e.target.closest('[data-favs]')){endSel(true);view={t:'fav'};search='';$('#q').value='';render();return;}
   const lc=e.target.closest('[data-list]');
   if(lc){endSel(true);view={t:'list',id:lc.dataset.list};search='';$('#q').value='';render();return;}
   const row=e.target.closest('.row');if(!row)return;
