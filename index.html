@@ -382,6 +382,17 @@ button.srow:active{background:var(--card2)}
 .fcard{background:var(--card);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:10px}
 .fcard .cov{width:100%;height:auto;aspect-ratio:16/10;border-radius:12px;background:linear-gradient(135deg,var(--red),color-mix(in srgb,var(--red) 45%,#000))}
 .fcard .meta{flex:none}
+.lcard[data-folder],.fcard[data-folder]{position:relative}
+.fplay{outline:2px solid var(--yel);outline-offset:-2px;background:color-mix(in srgb,var(--yel) 9%,var(--card))!important}
+.fbadge{position:absolute;display:flex;align-items:flex-end;gap:2px;padding:5px 9px;border-radius:999px;background:var(--yel);color:var(--onp);font-size:11px;font-weight:800;line-height:1;pointer-events:none}
+.lcard .fbadge{right:12px;top:50%;margin-top:-13px}
+.fcard .fbadge{right:20px;top:20px}
+.fbadge i{display:block;width:3px;height:10px;border-radius:2px;background:currentColor;transform-origin:bottom;animation:fbar .8s ease-in-out infinite}
+.fbadge i:nth-child(2){animation-delay:.2s}.fbadge i:nth-child(3){animation-delay:.4s}
+.fbadge span{margin-left:5px;align-self:center}
+.fpaused .fbadge i{animation-play-state:paused}
+@keyframes fbar{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+
 #vol{display:flex;align-items:center;gap:6px;margin:8px 0 0;touch-action:none;user-select:none;-webkit-user-select:none}
 #vico{padding:6px;color:var(--tx)}#vico svg{width:22px;height:22px;fill:currentColor}
 #vtrack{flex:1;height:36px;position:relative;touch-action:none;cursor:ew-resize}
@@ -575,7 +586,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.7.6';
+const APP_VERSION='1.7.7';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -2550,7 +2561,18 @@ addEventListener('resize',placeMini);
 })();
 
 /* ---------- UI do leitor ---------- */
+function foldMark(){
+  const t=cur(),f=t&&t.folder;
+  document.querySelectorAll('.lcard[data-folder],.fcard[data-folder]').forEach(el=>{
+    const on=!!f&&decodeURIComponent(el.dataset.folder)===f;
+    el.classList.toggle('fplay',on);el.classList.toggle('fpaused',on&&audio.paused);
+    let b=el.querySelector('.fbadge');
+    if(on&&!b){b=document.createElement('div');b.className='fbadge';b.innerHTML='<i></i><i></i><i></i><span>A tocar</span>';el.appendChild(b);}
+    else if(!on&&b)b.remove();
+  });
+}
 function updateUI(){
+  foldMark();
   const t=cur(),mini=$('#mini');
   mini.classList.toggle('show',!!t);
   $('#fab').classList.toggle('up',!t);
