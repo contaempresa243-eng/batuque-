@@ -275,6 +275,7 @@ a.srow{color:inherit;text-decoration:none}
 @keyframes djblink{50%{opacity:.25}}
 .dkj{display:flex;gap:5px}
 .dkj button{flex:1;height:32px;border-radius:9px;background:var(--card2);font-size:12.5px;font-weight:800}
+.dkbt button{font-size:11.5px!important}
 .dkj button:active{background:var(--yel);color:var(--onp)}
 .dkc4{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
 .dkc4 button{height:40px;border-radius:10px;background:var(--card2);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;color:var(--mut);touch-action:manipulation}
@@ -671,7 +672,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.12.0';
+const APP_VERSION='1.13.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -2151,8 +2152,8 @@ function djLoadDeck(d,t){
 }
 
 /* ---------- Deteção de batida (BPM) ---------- */
-let bpmDB={};try{bpmDB=JSON.parse(localStorage.getItem('batuque_bpm')||'{}')||{};}catch(e){bpmDB={};}
-function bpmSave(){try{const k=Object.keys(bpmDB);if(k.length>400)k.slice(0,k.length-400).forEach(x=>delete bpmDB[x]);localStorage.setItem('batuque_bpm',JSON.stringify(bpmDB));}catch(e){}}
+let bpmDB={};try{bpmDB=JSON.parse(localStorage.getItem('batuque_bpm2')||'{}')||{};}catch(e){bpmDB={};}
+function bpmSave(){try{const k=Object.keys(bpmDB);if(k.length>400)k.slice(0,k.length-400).forEach(x=>delete bpmDB[x]);localStorage.setItem('batuque_bpm2',JSON.stringify(bpmDB));}catch(e){}}
 function bpmDetect(buf){
   const sr=buf.sampleRate,n=buf.length,ch=buf.numberOfChannels;
   const segLen=Math.min(n,Math.floor(80*sr)),st=n>segLen?Math.floor((n-segLen)*.4):0;
@@ -2181,12 +2182,12 @@ function bpmDetect(buf){
   const conf=mx/(sm/cnt||1);
   const P=Math.round(L);let bo=0,bv=-1;
   for(let o=0;o<P;o++){let v=0;for(let k=0;;k++){const i=Math.round(o+k*L);if(i>=nf)break;v+=on[i];}if(v>bv){bv=v;bo=o;}}
-  return{bpm:Math.round(bpm*10)/10,beat0:(st+bo*hop)/sr,conf};
+  return{bpm:Math.round(bpm*10)/10,beat0:Math.max(0,(st+bo*hop)/sr-.03),conf};
 }
 async function djAnalyze(d,t){
   const tok=++d.tok;d.bpm=0;d.busy=true;djBpmUI(d);
   const c=bpmDB[t.id];
-  if(c){d.bpm=c[0];d.beat0=c[1];d.busy=false;djBpmUI(d);return;}
+  if(c){d.bpm=c[0];d.beat0=c[1];d.busy=false;djBpmUI(d);djIntro(d);return;}
   try{
     const oc=new OfflineAudioContext(1,1,22050);
     let buf=await oc.decodeAudioData(await t.blob.arrayBuffer());
@@ -2196,7 +2197,7 @@ async function djAnalyze(d,t){
     if(tok!==d.tok)return;
     if(r){d.bpm=r.bpm;d.beat0=r.beat0;bpmDB[t.id]=[r.bpm,r.beat0];bpmSave();}
   }catch(e){}
-  if(tok===d.tok){d.busy=false;djBpmUI(d);}
+  if(tok===d.tok){d.busy=false;djBpmUI(d);djIntro(d);}
 }
 function djBpmUI(d){
   if(d.dly)d.dly.delayTime.setTargetAtTime(Math.min(1.9,d.bpm?60/(d.bpm*(1+d.rate))*.75:.375),dj.ctx.currentTime,.05);
@@ -2252,6 +2253,49 @@ function djWireCues(d){
     });
   });
 }
+
+/* primeira batida (a «intro» do DJ): o CUE passa a voltar lá e a música carregada fica pronta nesse ponto */
+function djFirstBeat(d){
+  if(!d.bpm)return 0;
+  const per=60/d.bpm;return((d.beat0%per)+per)%per;
+}
+function djIntro(d){
+  if(!d.t||!d.bpm)return;
+  const fb=djFirstBeat(d);d.cue=fb;
+  if(d.el.paused&&d.el.currentTime<.1)d.el.currentTime=fb;
+}
+function djBpmSet(d,bpm,beat0){
+  d.bpm=Math.round(bpm*10)/10;if(beat0!==undefined)d.beat0=beat0;
+  if(d.t){bpmDB[d.t.id]=[d.bpm,d.beat0];bpmSave();}
+  d.sync=false;d.root.querySelector('.sy').classList.remove('on');
+  djBpmUI(d);djIntro(d);
+}
+function djWireBpm(d){
+  const taps=[];
+  d.root.querySelector('[data-first]').onclick=()=>{
+    if(!d.t)return;
+    if(!d.bpm){toast(d.busy?'Espera pela análise da batida':'Sem BPM detetado nesta música',2400);return;}
+    d.el.currentTime=djFirstBeat(d);
+  };
+  d.root.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{
+    if(!d.t)return;
+    const k=b.dataset.b;
+    if(k==='tap'){
+      const now=performance.now();
+      if(taps.length&&now-taps[taps.length-1]>2000)taps.length=0;
+      taps.push(now);if(taps.length>10)taps.shift();
+      b.textContent=taps.length<4?'TAP '+taps.length:'TAP';
+      if(taps.length>=4){
+        const iv=(taps[taps.length-1]-taps[0])/(taps.length-1)/1000;
+        djBpmSet(d,60/(iv*(1+d.rate)),d.el.paused?undefined:Math.max(0,d.el.currentTime-.05));
+        toast('BPM '+d.bpm.toFixed(1)+(d.el.paused?'':' · batida marcada aqui'),1600);
+      }
+      return;
+    }
+    if(!d.bpm){toast('Sem BPM detetado: usa TAP para marcar',2400);return;}
+    djBpmSet(d,d.bpm*(k==='half'?.5:2));
+  });
+}
 function djPick(d){
   if(!tracks.length){toast('A biblioteca está vazia');return;}
   const items=ordered(tracks).map(t=>({label:t.title+(t.artist?' — '+t.artist:''),fn:()=>djLoadDeck(d,t)}));
@@ -2286,10 +2330,11 @@ function djBuild(){
     d.root.innerHTML=`<div class="dkh"><span class="dkl">${id.toUpperCase()}</span><div class="dkc">♪</div><div class="dkt"><b>Escolher música</b><small>toca para carregar</small></div></div>
       <div class="dks"><i></i></div><div class="dkm"><span class="tc">0:00</span><span class="td">-0:00</span></div>
       <div class="dkbpm"><span class="bd"></span><span class="bv">—</span><small class="bs"></small></div>
+      <div class="dkj dkbt"><button data-b="half">½ BPM</button><button data-b="dbl">2× BPM</button><button data-b="tap">TAP</button></div>
       <div class="dkb"><button class="cue">CUE</button><button class="sy">SYNC</button><button class="pl">${ic('play')}</button></div>
       <div class="dkp"><button data-l="2">2 s</button><button data-l="4">4 s</button><button data-l="8">8 s</button></div>
       <div class="dkfx">Saltar batidas</div>
-      <div class="dkj"><button data-j="-4">◂ 4</button><button data-j="-1">◂ 1</button><button data-j="1">1 ▸</button><button data-j="4">4 ▸</button></div>
+      <div class="dkj"><button data-first="1" aria-label="Ir à primeira batida">|◂ 1ª</button><button data-j="-4">◂ 4</button><button data-j="-1">◂ 1</button><button data-j="1">1 ▸</button><button data-j="4">4 ▸</button></div>
       <div class="dkfx">Pontos de cue</div>
       <div class="dkc4"><button data-h="0"></button><button data-h="1"></button><button data-h="2"></button><button data-h="3"></button></div>
       <div class="dkf"><div><div class="f0"></div><small>Agudos</small></div><div><div class="f1"></div><small>Médios</small></div><div><div class="f2"></div><small>Graves</small></div><div><div class="dkv"><div class="f3"></div><div class="mt"><i></i></div></div><small>Volume</small></div></div>
@@ -2314,7 +2359,7 @@ function djBuild(){
     d.fxR=djFader(q('.fxr'),{vert:0,min:0,max:1,val:0,def:0,cb:v=>{d.rS.gain.setTargetAtTime(v*1.7,dj.ctx.currentTime,.02);q('.orv').textContent=v>.03?Math.round(v*100)+'%':'Off';}});
     q('.dkh').onclick=()=>djPick(d);
     q('.sy').onclick=()=>djSync(d);
-    djWireCues(d);djHcUI(d);
+    djWireCues(d);djHcUI(d);djWireBpm(d);
     q('.pl').onclick=()=>{if(!d.t){djPick(d);return;}d.el.paused?(ctx.state==='suspended'&&ctx.resume(),d.el.play().catch(()=>{})):d.el.pause();};
     q('.cue').onclick=()=>{
       if(!d.t)return;
