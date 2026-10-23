@@ -37,6 +37,9 @@ main{flex:1;overflow-y:auto;padding:4px 12px 90px}
 .cov{width:46px;height:46px;border-radius:10px;flex:none;display:grid;place-items:center;font-weight:800;font-size:18px;color:#fff;text-shadow:0 1px 2px #0006}
 .cov{overflow:hidden}
 #bigcov{overflow:hidden}
+#bigcov{touch-action:none;user-select:none;-webkit-user-select:none;position:relative;will-change:transform}
+#bigcov .fast{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:#000b;color:#fff;font-size:15px;font-weight:800;text-shadow:none;padding:6px 14px;border-radius:999px;letter-spacing:.3px;pointer-events:none}
+
 #viz{display:block;flex:none;width:100%;height:56px;margin:10px 0 4px;pointer-events:none}
 .cov img,#bigcov img{width:100%;height:100%;object-fit:cover;display:block}
 .meta{flex:1;min-width:0}
@@ -590,7 +593,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.8.0';
+const APP_VERSION='1.8.1';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -697,6 +700,54 @@ function fsRestore(){
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)fsRestore();});
 window.addEventListener('pageshow',fsRestore);
 fsRestore();
+
+/* Gestos na capa do ecrã completo: deslizar para cima = seguinte, para baixo = anterior, manter premida = 2× mais rápido */
+(()=>{
+  const c=$('#bigcov');let x0=0,y0=0,dx=0,dy=0,down=false,held=false,ht=null,busy=false;
+  const FAST=2;
+  const setFast=on=>{
+    held=on;
+    try{audio.playbackRate=on?FAST:1;}catch(e){}
+    if(on){if((xfActive||xfPrep)&&!xfStarting)xfStop();if(navigator.vibrate)try{navigator.vibrate(15);}catch(e){}}
+    let b=c.querySelector('.fast');
+    if(on&&!b){b=document.createElement('div');b.className='fast';b.textContent='▶▶ '+FAST+'×';c.appendChild(b);}
+    else if(!on&&b)b.remove();
+  };
+  const rest=(anim)=>{c.style.transition=anim?'transform .22s ease,opacity .22s ease':'none';c.style.transform='';c.style.opacity='';};
+  c.addEventListener('pointerdown',e=>{
+    if(busy||qi<0)return;
+    down=true;held=false;x0=e.clientX;y0=e.clientY;dx=dy=0;
+    try{c.setPointerCapture(e.pointerId);}catch(_){}
+    c.style.transition='none';
+    clearTimeout(ht);ht=setTimeout(()=>{if(down&&Math.abs(dy)<12&&Math.abs(dx)<12){if(audio.paused)return;setFast(true);}},380);
+  });
+  c.addEventListener('pointermove',e=>{
+    if(!down||held)return;
+    dx=e.clientX-x0;dy=e.clientY-y0;
+    if(Math.abs(dy)>12&&Math.abs(dy)>Math.abs(dx)){
+      clearTimeout(ht);
+      const m=Math.max(-160,Math.min(160,dy*.7));
+      c.style.transform='translateY('+m+'px)';c.style.opacity=String(1-Math.min(.5,Math.abs(m)/320));
+    }
+  });
+  const end=ok=>{
+    if(!down)return;down=false;clearTimeout(ht);
+    if(held){setFast(false);rest(true);return;}
+    if(ok&&Math.abs(dy)>70&&Math.abs(dy)>Math.abs(dx)*1.2){
+      const up=dy<0;busy=true;
+      c.style.transition='transform .16s ease-in,opacity .16s ease-in';
+      c.style.transform='translateY('+(up?-90:90)+'px)';c.style.opacity='0';
+      setTimeout(()=>{
+        if(up)next(false);else prev(true);
+        c.style.transition='none';c.style.transform='translateY('+(up?90:-90)+'px)';
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{c.style.transition='transform .22s ease-out,opacity .22s ease-out';c.style.transform='';c.style.opacity='1';busy=false;}));
+      },160);
+    }else rest(true);
+  };
+  c.addEventListener('pointerup',()=>end(true));
+  c.addEventListener('pointercancel',()=>end(false));
+  document.addEventListener('visibilitychange',()=>{if(held){setFast(false);down=false;rest(false);}});
+})();
 
 /* Instalar app: instalada, a notificação de música mostra "Batuque" em vez de "Chrome" */
 let dip=null;
@@ -1695,7 +1746,7 @@ function xfStop(){
   audio.volume=vol;
 }
 function xfPrepare(){
-  const t=cur();if(!t)return;
+  const t=cur();if(!t||audio.playbackRate!==1)return;
   if(!actx)initEQ();
   if(actx&&actx.state==='suspended')actx.resume();
   const f=fxEl();
