@@ -316,6 +316,32 @@ a.srow{color:inherit;text-decoration:none}
 .dkr output{flex:none;font-size:11px;min-width:40px;text-align:right;color:var(--mut)}
 #djx{padding:8px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--bd)}
 #djx .lb{display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:var(--yel);margin-bottom:2px}
+
+#djtabs{display:flex;gap:6px;padding:2px 8px 6px}
+#djtabs button{flex:1;height:34px;border-radius:10px;background:var(--card2);font-size:13px;font-weight:800;color:var(--mut)}
+#djtabs button.on{background:var(--yel);color:var(--onp)}
+#dj .tb{display:flex;flex-direction:column;gap:7px}
+#dj[data-tab=mesa] .tb:not([data-tab=mesa]),#dj[data-tab=cues] .tb:not([data-tab=cues]),#dj[data-tab=fx] .tb:not([data-tab=fx]){display:none}
+#djrot{font-size:22px;line-height:1;padding:6px 10px;color:var(--tx)}
+@media (orientation:landscape) and (max-height:560px){
+  #dj .djh{padding:calc(4px + env(safe-area-inset-top)) 10px 2px}
+  #dj .djh h2{font-size:16px}
+  #djtabs{padding:0 8px 4px}#djtabs button{height:28px;font-size:12px}
+  #djdecks{gap:6px;padding:0 6px;align-content:stretch;grid-template-rows:minmax(0,1fr);overflow:hidden}
+  .dk{padding:6px;gap:5px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);column-gap:8px;align-content:start;min-height:0}
+  .dk>.tb{grid-column:2;grid-row:1/span 6;min-height:0;max-height:100%;overflow:auto;padding-right:2px}
+  .dk>:not(.tb){grid-column:1}
+  .dkc{width:34px;height:34px}
+  .dks{height:34px}
+  .dkb button{height:34px}
+  .fd.v{height:78px}.dkv .mt{height:78px}
+  .dkc4 button{height:34px}
+  #djx{display:flex;align-items:center;gap:12px;padding:4px 14px calc(6px + env(safe-area-inset-bottom))}
+  #djx .djam{flex:0 0 46%;margin:0}
+  #djx .djcx{flex:1;min-width:0}
+  #djx .lb{margin-bottom:0}
+  #djsy{margin-top:0}
+}
 #toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:40;opacity:0;pointer-events:none;transition:opacity .25s}
 #toast.show{opacity:1}
 #toast{max-width:88vw;text-align:center;line-height:1.35}
@@ -581,9 +607,10 @@ header{position:relative}
   <div id="mxprog"><div class="pb"><b id="mxpt">A gerar a mix…</b><small id="mxps"></small><div class="bar"><i id="mxpb"></i></div><button id="mxpc">Cancelar</button></div></div>
 </div>
 <div id="dj">
-  <div class="djh"><button class="ib" id="djback" aria-label="Voltar"></button><h2>Mini DJ</h2><button class="djrec" id="djrec" aria-label="Gravar a mistura"><i></i><span>Gravar</span></button></div>
+  <div class="djh"><button class="ib" id="djback" aria-label="Voltar"></button><h2>Mini DJ</h2><button class="ib" id="djrot" aria-label="Rodar o ecrã">⟳</button><button class="djrec" id="djrec" aria-label="Gravar a mistura"><i></i><span>Gravar</span></button></div>
+  <div id="djtabs"><button data-t="mesa" class="on">Mesa</button><button data-t="cues">Cues e batidas</button><button data-t="fx">Efeitos</button></div>
   <div id="djdecks"></div>
-  <div id="djx"><div class="djam"><button id="djmix">⇄ Mixar agora</button><button id="djauto">Auto: desligado</button></div><div class="lb"><span>A</span><span>Mistura</span><span>B</span></div><div class="fd h" id="djcf"></div><div id="djsy"></div></div>
+  <div id="djx"><div class="djam"><button id="djmix">⇄ Mixar agora</button><button id="djauto">Auto: desligado</button></div><div class="djcx"><div class="lb"><span>A</span><span>Mistura</span><span>B</span></div><div class="fd h" id="djcf"></div><div id="djsy"></div></div></div>
 </div>
 <div id="settings">
   <div class="shead">
@@ -677,7 +704,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.14.0';
+const APP_VERSION='1.15.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -837,6 +864,7 @@ fsRestore();
   document.addEventListener('visibilitychange',()=>{if(held){setFast(false);down=false;rest(false);}});
 })();
 
+try{if(isApp()&&screen.orientation&&screen.orientation.lock)screen.orientation.lock('portrait').catch(()=>{});}catch(e){}
 /* Instalar app: instalada, a notificação de música mostra "Batuque" em vez de "Chrome" */
 let dip=null;
 const isInstalled=()=>{try{return matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches||!!navigator.standalone;}catch(e){return false;}};
@@ -2390,21 +2418,28 @@ function djBuild(){
     d.root.innerHTML=`<div class="dkh"><span class="dkl">${id.toUpperCase()}</span><div class="dkc">♪</div><div class="dkt"><b>Escolher música</b><small>toca para carregar</small></div></div>
       <div class="dks"><canvas></canvas></div><div class="dkm"><span class="tc">0:00</span><span class="td">-0:00</span></div>
       <div class="dkbpm"><span class="bd"></span><span class="bv">—</span><small class="bs"></small></div>
-      <div class="dkj dkbt"><button data-b="half">½ BPM</button><button data-b="dbl">2× BPM</button><button data-b="tap">TAP</button></div>
       <div class="dkb"><button class="cue">CUE</button><button class="sy">SYNC</button><button class="pl">${ic('play')}</button></div>
-      <div class="dkp"><button data-l="2">2 s</button><button data-l="4">4 s</button><button data-l="8">8 s</button></div>
-      <div class="dkp dkq"><button data-q=".25">¼ b</button><button data-q=".5">½ b</button><button data-q="1">1 b</button><button data-q="2">2 b</button><button data-q="4">4 b</button></div>
-      <div class="dkj dkx"><button class="br">FREIO</button><button class="kl on">TOM FIXO</button></div>
-      <div class="dkfx">Saltar batidas</div>
-      <div class="dkj"><button data-first="1" aria-label="Ir à primeira batida">|◂ 1ª</button><button data-j="-4">◂ 4</button><button data-j="-1">◂ 1</button><button data-j="1">1 ▸</button><button data-j="4">4 ▸</button></div>
-      <div class="dkfx">Pontos de cue</div>
-      <div class="dkc4"><button data-h="0"></button><button data-h="1"></button><button data-h="2"></button><button data-h="3"></button></div>
-      <div class="dkf"><div><div class="f0"></div><small>Agudos</small></div><div><div class="f1"></div><small>Médios</small></div><div><div class="f2"></div><small>Graves</small></div><div><div class="dkv"><div class="f3"></div><div class="mt"><i></i></div></div><small>Volume</small></div></div>
-      <div class="dkr"><small>Veloc.</small><div class="sp"></div><output>0%</output></div>
-      <div class="dkfx">Efeitos</div>
-      <div class="dkr"><small>Filtro</small><div class="fxf"></div><output class="of">Off</output></div>
-      <div class="dkr"><small>Eco</small><div class="fxe"></div><output class="oe">Off</output></div>
-      <div class="dkr"><small>Reverb</small><div class="fxr"></div><output class="orv">Off</output></div>`;
+      <div class="tb" data-tab="mesa">
+        <div class="dkp"><button data-l="2">2 s</button><button data-l="4">4 s</button><button data-l="8">8 s</button></div>
+        <div class="dkp dkq"><button data-q=".25">¼ b</button><button data-q=".5">½ b</button><button data-q="1">1 b</button><button data-q="2">2 b</button><button data-q="4">4 b</button></div>
+        <div class="dkf"><div><div class="f0"></div><small>Agudos</small></div><div><div class="f1"></div><small>Médios</small></div><div><div class="f2"></div><small>Graves</small></div><div><div class="dkv"><div class="f3"></div><div class="mt"><i></i></div></div><small>Volume</small></div></div>
+        <div class="dkr"><small>Veloc.</small><div class="sp"></div><output>0%</output></div>
+        <div class="dkj dkx"><button class="kl on">TOM FIXO</button></div>
+      </div>
+      <div class="tb" data-tab="cues">
+        <div class="dkfx">Saltar batidas</div>
+        <div class="dkj"><button data-first="1" aria-label="Ir à primeira batida">|◂ 1ª</button><button data-j="-4">◂ 4</button><button data-j="-1">◂ 1</button><button data-j="1">1 ▸</button><button data-j="4">4 ▸</button></div>
+        <div class="dkfx">Pontos de cue</div>
+        <div class="dkc4"><button data-h="0"></button><button data-h="1"></button><button data-h="2"></button><button data-h="3"></button></div>
+        <div class="dkfx">Acertar o BPM</div>
+        <div class="dkj dkbt"><button data-b="half">½ BPM</button><button data-b="dbl">2× BPM</button><button data-b="tap">TAP</button></div>
+      </div>
+      <div class="tb" data-tab="fx">
+        <div class="dkr"><small>Filtro</small><div class="fxf"></div><output class="of">Off</output></div>
+        <div class="dkr"><small>Eco</small><div class="fxe"></div><output class="oe">Off</output></div>
+        <div class="dkr"><small>Reverb</small><div class="fxr"></div><output class="orv">Off</output></div>
+        <div class="dkj dkx"><button class="br">FREIO (parar o disco)</button></div>
+      </div>`;
     wrap.appendChild(d.root);dj.decks.push(d);
     const q=s=>d.root.querySelector(s);
     d.eqF=DJ_EQ.map((_,i)=>djFader(q('.f'+i),{vert:1,min:-12,max:12,val:0,def:0,cb:v=>{d.eq[i].gain.value=v;}}));
@@ -2628,6 +2663,23 @@ $('#djauto').onclick=()=>{
     else toast('Auto ligado: a mistura começa perto do fim da música',2600);
   }
 };
+
+/* separadores (Mesa · Cues e batidas · Efeitos) e orientação do ecrã */
+function djTab(t){
+  $('#dj').dataset.tab=t;
+  document.querySelectorAll('#djtabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  try{localStorage.setItem('batuque_djtab',t);}catch(e){}
+}
+document.querySelectorAll('#djtabs button').forEach(b=>b.onclick=()=>djTab(b.dataset.t));
+{let t='mesa';try{t=localStorage.getItem('batuque_djtab')||'mesa';}catch(e){}djTab(t);}
+const scrLock=async m=>{try{await screen.orientation.lock(m);return true;}catch(e){return false;}};
+let djRotHint=false;
+async function djRotate(){
+  const land=(screen.orientation&&screen.orientation.type||'').startsWith('landscape')||innerWidth>innerHeight;
+  const ok=await scrLock(land?'portrait':'landscape');
+  if(!ok)toast('Não consegui rodar sozinho. Ativa a rotação automática do telemóvel e roda-o.',4000);
+}
+$('#djrot').onclick=djRotate;
 function djOpen(){
   closeSheet();
   if(!audio.paused)audio.pause();
@@ -2635,8 +2687,10 @@ function djOpen(){
   if(dj.ctx.state==='suspended')dj.ctx.resume();
   {const cs=getComputedStyle(document.documentElement);dj.col={on:cs.getPropertyValue('--yel').trim()||'#ffcb05',off:cs.getPropertyValue('--track').trim()||'#555',ph:cs.getPropertyValue('--tx').trim()||'#fff'};}
   $('#dj').classList.add('show');cancelAnimationFrame(dj.raf);djTick();
+  scrLock('landscape').then(ok=>{if(!ok&&!djRotHint&&innerHeight>innerWidth){djRotHint=true;toast('Roda o telemóvel para ver o Mini DJ na horizontal',3500);}});
 }
 function djClose(){
+  scrLock('portrait');
   if(djRec)djRecStop();
   if(dj&&dj.mixing)djMixCancel();
   if(dj)dj.decks.forEach(djBrakeEnd);
