@@ -252,9 +252,8 @@ a.srow{color:inherit;text-decoration:none}
 .dkt{min-width:0;flex:1}
 .dkt b{display:block;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dkt small{display:block;font-size:11px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dks{height:22px;position:relative;touch-action:none;cursor:pointer}
-.dks::before{content:"";position:absolute;left:0;right:0;top:9px;height:5px;border-radius:3px;background:var(--track)}
-.dks i{position:absolute;left:0;top:9px;height:5px;border-radius:3px;background:var(--yel);width:0}
+.dks{height:46px;position:relative;touch-action:none;cursor:pointer;border-radius:8px;background:var(--card2);overflow:hidden}
+.dks canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .dkm{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);font-variant-numeric:tabular-nums;margin-top:-4px}
 .dkb{display:flex;gap:6px}
 .dkb button{flex:1;height:40px;border-radius:12px;background:var(--card2);font-weight:800;font-size:13px;display:grid;place-items:center}
@@ -284,6 +283,12 @@ a.srow{color:inherit;text-decoration:none}
 .dkc4 button.on{color:#fff}
 .dkc4 button:nth-child(1).on{background:#d6303f}.dkc4 button:nth-child(2).on{background:#e08a00}.dkc4 button:nth-child(3).on{background:#2e9e4d}.dkc4 button:nth-child(4).on{background:#2f7fd8}
 .dkc4 button:active{transform:scale(.95)}
+.dkx button{font-size:11.5px!important}
+.dkx button.on{background:var(--yel)!important;color:var(--onp)}
+.dkx button.br:active{background:var(--red)!important;color:#fff}
+.djam{display:flex;gap:8px;margin-bottom:8px}
+.djam button{flex:1;height:38px;border-radius:12px;background:var(--card2);font-weight:800;font-size:13px}
+.djam button.on{background:var(--yel);color:var(--onp)}
 .dkp{display:flex;gap:5px}
 .dkp button{flex:1;height:30px;border-radius:9px;background:var(--card2);font-size:12px;font-weight:700;color:var(--mut)}
 .dkp button.on{background:var(--red);color:#fff}
@@ -578,7 +583,7 @@ header{position:relative}
 <div id="dj">
   <div class="djh"><button class="ib" id="djback" aria-label="Voltar"></button><h2>Mini DJ</h2><button class="djrec" id="djrec" aria-label="Gravar a mistura"><i></i><span>Gravar</span></button></div>
   <div id="djdecks"></div>
-  <div id="djx"><div class="lb"><span>A</span><span>Mistura</span><span>B</span></div><div class="fd h" id="djcf"></div><div id="djsy"></div></div>
+  <div id="djx"><div class="djam"><button id="djmix">⇄ Mixar agora</button><button id="djauto">Auto: desligado</button></div><div class="lb"><span>A</span><span>Mistura</span><span>B</span></div><div class="fd h" id="djcf"></div><div id="djsy"></div></div>
 </div>
 <div id="settings">
   <div class="shead">
@@ -672,7 +677,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.13.0';
+const APP_VERSION='1.14.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -2184,20 +2189,75 @@ function bpmDetect(buf){
   for(let o=0;o<P;o++){let v=0;for(let k=0;;k++){const i=Math.round(o+k*L);if(i>=nf)break;v+=on[i];}if(v>bv){bv=v;bo=o;}}
   return{bpm:Math.round(bpm*10)/10,beat0:Math.max(0,(st+bo*hop)/sr-.03),conf};
 }
+/* onda da música: 300 picos por faixa, guardados no telemóvel */
+let wvDB={};try{wvDB=JSON.parse(localStorage.getItem('batuque_wave')||'{}')||{};}catch(e){wvDB={};}
+function wvSave(){try{const k=Object.keys(wvDB);if(k.length>200)k.slice(0,k.length-200).forEach(x=>delete wvDB[x]);localStorage.setItem('batuque_wave',JSON.stringify(wvDB));}catch(e){}}
+function wavePeaks(buf){
+  const N=300,n=buf.length,c0=buf.getChannelData(0),c1=buf.numberOfChannels>1?buf.getChannelData(1):c0,out=new Array(N).fill(0),step=n/N;let gm=0;
+  for(let b=0;b<N;b++){
+    let m=0;const a=Math.floor(b*step),e=Math.min(n,Math.floor((b+1)*step)),k=Math.max(1,Math.floor((e-a)/300));
+    for(let i=a;i<e;i+=k){const v=Math.max(Math.abs(c0[i]),Math.abs(c1[i]));if(v>m)m=v;}
+    out[b]=m;if(m>gm)gm=m;
+  }
+  return out.map(v=>Math.round(Math.pow(v/(gm||1),.7)*90));
+}
 async function djAnalyze(d,t){
-  const tok=++d.tok;d.bpm=0;d.busy=true;djBpmUI(d);
-  const c=bpmDB[t.id];
-  if(c){d.bpm=c[0];d.beat0=c[1];d.busy=false;djBpmUI(d);djIntro(d);return;}
+  const tok=++d.tok;d.bpm=0;d.busy=true;d.wave=null;djBpmUI(d);
+  const c=bpmDB[t.id],w=wvDB[t.id];
+  if(w)d.wave=[...w].map(ch=>ch.charCodeAt(0)-33);
+  if(c){d.bpm=c[0];d.beat0=c[1];djBpmUI(d);djIntro(d);}
+  if(c&&w){d.busy=false;djBpmUI(d);return;}
   try{
     const oc=new OfflineAudioContext(1,1,22050);
     let buf=await oc.decodeAudioData(await t.blob.arrayBuffer());
     if(tok!==d.tok)return;
     await new Promise(r=>setTimeout(r,20));
-    const r=bpmDetect(buf);buf=null;
-    if(tok!==d.tok)return;
-    if(r){d.bpm=r.bpm;d.beat0=r.beat0;bpmDB[t.id]=[r.bpm,r.beat0];bpmSave();}
+    if(!w){const pk=wavePeaks(buf);d.wave=pk;wvDB[t.id]=String.fromCharCode(...pk.map(v=>v+33));wvSave();}
+    if(!c){const r=bpmDetect(buf);if(tok!==d.tok)return;if(r){d.bpm=r.bpm;d.beat0=r.beat0;bpmDB[t.id]=[r.bpm,r.beat0];bpmSave();}}
+    buf=null;
   }catch(e){}
   if(tok===d.tok){d.busy=false;djBpmUI(d);djIntro(d);}
+}
+const DJ_HC=['#d6303f','#e08a00','#2e9e4d','#2f7fd8'];
+function djDraw(d){
+  const cv=d.cv;if(!cv)return;
+  const w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return;
+  const dpr=window.devicePixelRatio||1;
+  if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);}
+  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
+  const col=dj.col,dur=d.el.duration||(d.t&&d.t.dur)||0,cur=d.el.currentTime||0,mid=h/2,pf=dur?cur/dur:0,pk=d.wave;
+  for(let x=0;x<w;x++){
+    let amp=.06;
+    if(pk){const N=pk.length,i0=Math.floor(x/w*N),i1=Math.max(i0+1,Math.floor((x+1)/w*N));let m=0;for(let i=i0;i<i1&&i<N;i++)if(pk[i]>m)m=pk[i];amp=Math.max(.06,m/90);}
+    const bh=Math.max(2,amp*(h-6));
+    g.fillStyle=x/w<=pf?col.on:col.off;g.fillRect(x,mid-bh/2,1,bh);
+  }
+  if(dur){
+    if(d.loop){g.fillStyle='rgba(255,255,255,.22)';g.fillRect(d.loop.a/dur*w,0,Math.max(2,(d.loop.b-d.loop.a)/dur*w),h);}
+    const hc=d.t&&hcDB[d.t.id];
+    if(hc)hc.forEach((v,i)=>{if(typeof v==='number'){g.fillStyle=DJ_HC[i];g.fillRect(Math.min(w-2,v/dur*w),0,2,h);g.fillRect(Math.min(w-8,v/dur*w),0,8,3);}});
+    g.fillStyle=col.ph;g.fillRect(Math.min(w-2,pf*w),0,2,h);
+  }
+}
+/* parar o disco: a música abranda e pára, como um prato de vinil a ser travado */
+function djBrakeEnd(d){
+  if(!d.braking)return;
+  d.braking=false;cancelAnimationFrame(d.brRaf);
+  d.el.playbackRate=1+d.rate;d.el.preservesPitch=d.keep;d.el.webkitPreservesPitch=d.keep;
+}
+function djBrake(d){
+  if(!d.t||d.el.paused||d.braking)return;
+  d.braking=true;
+  const r0=d.el.playbackRate,t0=performance.now(),D=1200;
+  d.el.preservesPitch=false;d.el.webkitPreservesPitch=false;
+  const step=now=>{
+    if(!d.braking)return;
+    const k=Math.min(1,(now-t0)/D);
+    d.el.playbackRate=Math.max(.0625,r0*Math.pow(1-k,1.6));
+    if(k>=1){d.el.pause();djBrakeEnd(d);return;}
+    d.brRaf=requestAnimationFrame(step);
+  };
+  d.brRaf=requestAnimationFrame(step);
 }
 function djBpmUI(d){
   if(d.dly)d.dly.delayTime.setTargetAtTime(Math.min(1.9,d.bpm?60/(d.bpm*(1+d.rate))*.75:.375),dj.ctx.currentTime,.05);
@@ -2312,7 +2372,7 @@ function djBuild(){
   const wrap=$('#djdecks');wrap.innerHTML='';
   ['a','b'].forEach(id=>{
     const d={id,t:null,url:null,vol:.9,rate:0,cue:0,loop:null,bpm:0,beat0:0,tok:0,busy:false,root:document.createElement('div')};
-    d.el=new Audio();d.el.preload='auto';d.el.preservesPitch=false;d.el.webkitPreservesPitch=false;
+    d.el=new Audio();d.el.preload='auto';d.keep=true;d.el.preservesPitch=true;d.el.webkitPreservesPitch=true;
     const src=ctx.createMediaElementSource(d.el);
     d.eq=DJ_EQ.map(([n,type,f])=>{const b=ctx.createBiquadFilter();b.type=type;b.frequency.value=f;if(type==='peaking')b.Q.value=.9;return b;});
     d.gain=ctx.createGain();d.an=ctx.createAnalyser();d.an.fftSize=512;
@@ -2328,11 +2388,13 @@ function djBuild(){
     d.buf=new Uint8Array(d.an.fftSize);
     d.root.className='dk';
     d.root.innerHTML=`<div class="dkh"><span class="dkl">${id.toUpperCase()}</span><div class="dkc">♪</div><div class="dkt"><b>Escolher música</b><small>toca para carregar</small></div></div>
-      <div class="dks"><i></i></div><div class="dkm"><span class="tc">0:00</span><span class="td">-0:00</span></div>
+      <div class="dks"><canvas></canvas></div><div class="dkm"><span class="tc">0:00</span><span class="td">-0:00</span></div>
       <div class="dkbpm"><span class="bd"></span><span class="bv">—</span><small class="bs"></small></div>
       <div class="dkj dkbt"><button data-b="half">½ BPM</button><button data-b="dbl">2× BPM</button><button data-b="tap">TAP</button></div>
       <div class="dkb"><button class="cue">CUE</button><button class="sy">SYNC</button><button class="pl">${ic('play')}</button></div>
       <div class="dkp"><button data-l="2">2 s</button><button data-l="4">4 s</button><button data-l="8">8 s</button></div>
+      <div class="dkp dkq"><button data-q=".25">¼ b</button><button data-q=".5">½ b</button><button data-q="1">1 b</button><button data-q="2">2 b</button><button data-q="4">4 b</button></div>
+      <div class="dkj dkx"><button class="br">FREIO</button><button class="kl on">TOM FIXO</button></div>
       <div class="dkfx">Saltar batidas</div>
       <div class="dkj"><button data-first="1" aria-label="Ir à primeira batida">|◂ 1ª</button><button data-j="-4">◂ 4</button><button data-j="-1">◂ 1</button><button data-j="1">1 ▸</button><button data-j="4">4 ▸</button></div>
       <div class="dkfx">Pontos de cue</div>
@@ -2368,22 +2430,31 @@ function djBuild(){
     };
     d.root.querySelectorAll('.dkp button').forEach(b=>b.onclick=()=>{
       if(!d.t)return;
-      const n=+b.dataset.l,was=b.classList.contains('on');
+      const was=b.classList.contains('on');
       d.root.querySelectorAll('.dkp button').forEach(x=>x.classList.remove('on'));
       if(was){d.loop=null;return;}
-      b.classList.add('on');d.loop={a:d.el.currentTime,b:d.el.currentTime+n};
+      const t=d.el.currentTime;
+      if(b.dataset.q){
+        if(!d.bpm){toast(d.busy?'Espera pela análise da batida':'Sem BPM: usa o TAP para marcar',2400);return;}
+        const per=60/d.bpm,fb=djFirstBeat(d),a=Math.max(0,fb+Math.round((t-fb)/per)*per);
+        d.loop={a,b:a+(+b.dataset.q)*per};
+      }else d.loop={a:t,b:t+(+b.dataset.l)};
+      b.classList.add('on');
     });
+    q('.br').onclick=()=>djBrake(d);
+    q('.kl').onclick=()=>{d.keep=!d.keep;if(!d.braking){d.el.preservesPitch=d.keep;d.el.webkitPreservesPitch=d.keep;}q('.kl').classList.toggle('on',d.keep);toast(d.keep?'Tom fixo: o tom não muda com a velocidade':'Tom livre: o tom muda com a velocidade',2200);};
+    d.cv=q('.dks canvas');
     const sk=q('.dks');
     const seek=e=>{if(!d.t||!d.el.duration)return;const r=sk.getBoundingClientRect();d.el.currentTime=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*d.el.duration;};
     let sd=false;
     sk.addEventListener('pointerdown',e=>{sd=true;try{sk.setPointerCapture(e.pointerId);}catch(_){}seek(e);});
     sk.addEventListener('pointermove',e=>{if(sd)seek(e);});
     ['pointerup','pointercancel'].forEach(n=>sk.addEventListener(n,()=>{sd=false;}));
-    d.el.addEventListener('play',()=>{q('.pl').innerHTML=ic('pause');d.root.classList.add('on');});
+    d.el.addEventListener('play',()=>{if(d.braking)djBrakeEnd(d);q('.pl').innerHTML=ic('pause');d.root.classList.add('on');});
     d.el.addEventListener('pause',()=>{q('.pl').innerHTML=ic('play');d.root.classList.remove('on');});
     d.el.addEventListener('ended',()=>{d.el.currentTime=d.cue;});
   });
-  djFader($('#djcf'),{vert:0,min:0,max:1,val:.5,def:.5,cb:v=>{dj.x=v;djMix();}});
+  dj.cf=djFader($('#djcf'),{vert:0,min:0,max:1,val:.5,def:.5,cb:v=>{dj.x=v;djMix();}});
   djMix();
   return true;
 }
@@ -2393,9 +2464,9 @@ function djTick(){
     const q=s=>d.root.querySelector(s),el=d.el,dur=el.duration||0;
     if(d.loop&&el.currentTime>=d.loop.b)el.currentTime=d.loop.a;
     if(d.t&&dur){
-      q('.dks i').style.width=(el.currentTime/dur*100)+'%';
       q('.tc').textContent=fmt(el.currentTime);q('.td').textContent='-'+fmt((dur-el.currentTime)/(el.playbackRate||1));
     }
+    djDraw(d);
     const bd=q('.bd');
     if(d.bpm&&!el.paused){const per=60/d.bpm,ph=(el.currentTime-d.beat0)/per,fr=ph-Math.floor(ph);bd.classList.toggle('on',fr<.16);}else bd.classList.remove('on');
     let m=0;
@@ -2404,6 +2475,7 @@ function djTick(){
     q('.mt i').style.height=Math.min(100,d.lv*130)+'%';
   });
   if(djRec)$('#djrec span').textContent=fmt(djRec.n/djRec.sr);
+  djAutoCheck();
   dj.raf=requestAnimationFrame(djTick);
 }
 
@@ -2469,15 +2541,105 @@ async function djRecStop(){
   catch(e){toast('Sem espaço para guardar a gravação',4500);}
 }
 $('#djrec').onclick=djRecToggle;
+
+/* mistura automática: sincroniza o outro prato e passa de um para o outro com a troca de graves */
+function djSetX(x){dj.cf.set(x);dj.x=x;djMix();}
+function djMixInfo(){
+  const [a,b]=dj.decks;
+  const ga=Math.cos(dj.x*Math.PI/2)*a.vol,gb=Math.sin(dj.x*Math.PI/2)*b.vol;
+  const src=(a.el.paused&&!b.el.paused)?b:(b.el.paused&&!a.el.paused)?a:(ga>=gb?a:b);
+  const dst=src===a?b:a;
+  const eff=src.bpm?src.bpm*(1+src.rate):0;
+  let T=eff?16*60/eff:12;T=Math.max(6,Math.min(20,T));
+  const rate=src.el.playbackRate||1,rem=src.el.duration?(src.el.duration-src.el.currentTime)/rate:0;
+  return{src,dst,T,rem};
+}
+function djMixCancel(){
+  if(!dj.mixing)return;
+  cancelAnimationFrame(dj.mixRaf);dj.mixing=false;
+  $('#djmix').classList.remove('on');$('#djmix').textContent='⇄ Mixar agora';
+  toast('Mistura cancelada',1500);
+}
+function djMixNow(){
+  if(dj.mixing){djMixCancel();return;}
+  const {src,dst,T:T0,rem}=djMixInfo();
+  if(!src.t||!dst.t){toast('Carrega uma música em cada prato',2600);return;}
+  if(src.el.paused){toast('Põe o prato '+src.id.toUpperCase()+' a tocar primeiro',2600);return;}
+  if(dst.busy){toast('Espera pela análise do prato '+dst.id.toUpperCase(),2600);return;}
+  const T=Math.min(T0,rem-1.5);
+  if(T<2){toast('A música '+src.id.toUpperCase()+' está quase a acabar',2600);return;}
+  dj.mixing=true;$('#djmix').classList.add('on');$('#djmix').textContent='A misturar… cancelar';
+  const x0=src===dj.decks[0]?0:1,x1=1-x0;
+  djSetX(x0);
+  dst.eqF[2].set(-12);dst.eq[2].gain.value=-12;
+  if(dst.el.paused){
+    if(dst.el.currentTime<.1&&dst.bpm)dst.el.currentTime=djFirstBeat(dst);
+    if(dj.ctx.state==='suspended')dj.ctx.resume();
+    dst.el.play().catch(()=>{});
+  }
+  setTimeout(()=>{if(dj.mixing&&dst.bpm&&src.bpm)djSync(dst);},250);
+  const t0=performance.now()+800,cl=v=>Math.max(0,Math.min(1,v));
+  const step=now=>{
+    if(!dj.mixing)return;
+    const k=cl((now-t0)/(T*1000));
+    const e=k*k*(3-2*k);
+    djSetX(x0+(x1-x0)*e);
+    const bd=-12*(1-cl((k-.3)/.2)),bs=-12*cl((k-.5)/.2);
+    dst.eqF[2].set(bd);dst.eq[2].gain.value=bd;
+    src.eqF[2].set(bs);src.eq[2].gain.value=bs;
+    if(k>=1){
+      dj.mixing=false;
+      src.el.pause();
+      src.eqF[2].set(0);src.eq[2].gain.value=0;dst.eqF[2].set(0);dst.eq[2].gain.value=0;
+      src.loop=null;src.root.querySelectorAll('.dkp button').forEach(x=>x.classList.remove('on'));
+      src.el.currentTime=src.bpm?djFirstBeat(src):0;
+      $('#djmix').classList.remove('on');$('#djmix').textContent='⇄ Mixar agora';
+      if(dj.auto)djAutoNext(src,dst);else toast('Mistura feita',1500);
+      return;
+    }
+    dj.mixRaf=requestAnimationFrame(step);
+  };
+  dj.mixRaf=requestAnimationFrame(step);
+}
+function djNextTrack(from){
+  const list=ordered(tracks);if(!list.length)return null;
+  if(shuffle&&list.length>1){let t;do{t=list[Math.floor(Math.random()*list.length)];}while(from&&t.id===from.id);return t;}
+  const i=from?list.findIndex(t=>t.id===from.id):-1;
+  return list[(i+1)%list.length];
+}
+function djAutoNext(free,playing){
+  const t=djNextTrack(playing.t);
+  if(t){djLoadDeck(free,t);toast('A seguir no prato '+free.id.toUpperCase()+': '+t.title,2200);}
+}
+function djAutoCheck(){
+  if(!dj.auto||dj.mixing)return;
+  const {src,dst,T,rem}=djMixInfo();
+  if(src.el.paused||!src.t||!dst.t||dst.busy)return;
+  if(rem>0&&rem<=T+1.5)djMixNow();
+}
+$('#djmix').onclick=()=>djMixNow();
+$('#djauto').onclick=()=>{
+  dj.auto=!dj.auto;
+  $('#djauto').classList.toggle('on',dj.auto);$('#djauto').textContent=dj.auto?'Auto: ligado':'Auto: desligado';
+  if(dj.auto){
+    const {src,dst}=djMixInfo();
+    if(src.t&&!src.el.paused&&!dst.t)djAutoNext(dst,src);
+    else if(!src.t||src.el.paused)toast('Auto ligado: põe um prato a tocar e a app faz as misturas sozinha',3600);
+    else toast('Auto ligado: a mistura começa perto do fim da música',2600);
+  }
+};
 function djOpen(){
   closeSheet();
   if(!audio.paused)audio.pause();
   if(!dj&&!djBuild()){toast('Este navegador não suporta o Mini DJ');return;}
   if(dj.ctx.state==='suspended')dj.ctx.resume();
+  {const cs=getComputedStyle(document.documentElement);dj.col={on:cs.getPropertyValue('--yel').trim()||'#ffcb05',off:cs.getPropertyValue('--track').trim()||'#555',ph:cs.getPropertyValue('--tx').trim()||'#fff'};}
   $('#dj').classList.add('show');cancelAnimationFrame(dj.raf);djTick();
 }
 function djClose(){
   if(djRec)djRecStop();
+  if(dj&&dj.mixing)djMixCancel();
+  if(dj)dj.decks.forEach(djBrakeEnd);
   $('#dj').classList.remove('show');
   if(!dj)return;
   cancelAnimationFrame(dj.raf);
