@@ -717,6 +717,13 @@ function ordered(arr){
   const f={az:(a,b)=>c(a.title,b.title),za:(a,b)=>c(b.title,a.title),sup:(a,b)=>a.blob.size-b.blob.size,sdn:(a,b)=>b.blob.size-a.blob.size,new:(a,b)=>b.added-a.added,old:(a,b)=>a.added-b.added}[sortK];
   return f?arr.slice().sort(f):arr;
 }
+/* ao entrar numa lista, a música que está a tocar fica no topo, já destacada */
+let focusCur=false;
+function scrollToCur(){
+  const m=$('#main'),r=m.querySelector('.row.on');
+  if(!r){m.scrollTop=0;return;}
+  m.scrollTop+=r.getBoundingClientRect().top-m.getBoundingClientRect().top-6;
+}
 let queue=[],qi=-1,shuffle=false,repeat=0,curUrl=null,ctxName='A tocar',qctx=null;
 const audio=$('#audio');
 const byId=id=>tracks.find(t=>t.id===id);
@@ -727,7 +734,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.16.0';
+const APP_VERSION='1.16.1';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -1474,7 +1481,7 @@ function render(){
   const nl=$('#newlist');if(nl)nl.onclick=newList;
   const stm=$('#stmore');if(stm)stm.onclick=statsMenu;
   const stg=$('#stgenre');if(stg)stg.onclick=folderStyleMenu;
-  const sb=$('#fsback');if(sb)sb.onclick=()=>{view={t:'lib'};search='';$('#q').value='';render();$('#main').scrollTop=0;};
+  const sb=$('#fsback');if(sb)sb.onclick=()=>{view={t:'lib'};search='';$('#q').value='';render();scrollToCur();};
   const fb=$('#fdback');if(fb)fb.onclick=()=>{view={t:'folders'};search='';$('#q').value='';render();};
   const fm=$('#fdmore');if(fm)fm.onclick=folderMenu;
   const fvb=$('#favback');if(fvb)fvb.onclick=()=>{view={t:'lists'};search='';$('#q').value='';render();};
@@ -1482,16 +1489,17 @@ function render(){
   const lm=$('#lmore');if(lm)lm.onclick=listMenu;
   const ps=$('#pshuf');if(ps)ps.onclick=()=>{const a=visible();if(!a.length)return;shuffle=true;play(a.map(t=>t.id),Math.floor(Math.random()*a.length),$('#main h2')?.textContent,{k:'list',id:view.id,f:false});toast('Aleatório ligado');};
   const pa=$('#playall');if(pa)pa.onclick=()=>{const a=visible();if(a.length)play(a.map(t=>t.id),0,$('#main h2')?.textContent,{k:'list',id:view.id,f:false});};
+  if(focusCur&&cur()){focusCur=false;scrollToCur();}
   updateUI();selUI();
 }
 $('#main').addEventListener('click',e=>{
   const sk=e.target.closest('[data-stid]');
   if(sk){const ids=(sk.dataset.q||'').split(',').filter(byId),id=sk.dataset.stid;if(byId(id)){play(ids.length?ids:[id],Math.max(0,ids.indexOf(id)),'Mais ouvidas',{k:'stats',f:true});}return;}
   const fc=e.target.closest('[data-folder]');
-  if(fc){view={t:'folder',name:decodeURIComponent(fc.dataset.folder)};search='';$('#q').value='';render();$('#main').scrollTop=0;return;}
-  if(e.target.closest('[data-favs]')){endSel(true);view={t:'fav'};search='';$('#q').value='';render();return;}
+  if(fc){view={t:'folder',name:decodeURIComponent(fc.dataset.folder)};search='';$('#q').value='';render();scrollToCur();return;}
+  if(e.target.closest('[data-favs]')){endSel(true);view={t:'fav'};search='';$('#q').value='';render();scrollToCur();return;}
   const lc=e.target.closest('[data-list]');
-  if(lc){endSel(true);view={t:'list',id:lc.dataset.list};search='';$('#q').value='';render();return;}
+  if(lc){endSel(true);view={t:'list',id:lc.dataset.list};search='';$('#q').value='';render();scrollToCur();return;}
   const row=e.target.closest('.row');if(!row)return;
   if(lpFired){lpFired=false;return;}
   if(sel){toggleSel(row.dataset.id);return;}
@@ -1501,10 +1509,10 @@ $('#main').addEventListener('click',e=>{
   const arr=visible().map(x=>x.id);
   play(arr,arr.indexOf(id),view.t==='fav'?'Favoritos':view.t==='list'?(lists.find(l=>l.id===view.id)||{}).name:view.t==='folder'?folderName(view.name):'Biblioteca',{k:view.t,id:view.id,f:!!search});
 });
-document.querySelectorAll('nav button[data-v]').forEach(b=>b.onclick=()=>{endSel(true);view={t:b.dataset.v};search='';$('#q').value='';render();$('#main').scrollTop=0;});
+document.querySelectorAll('nav button[data-v]').forEach(b=>b.onclick=()=>{endSel(true);view={t:b.dataset.v};search='';$('#q').value='';render();scrollToCur();});
 $('#q').oninput=e=>{search=e.target.value.trim();render();};
 $('#fab').onclick=addMenu;
-$('#foldb').onclick=()=>{endSel(true);const was=view.t==='folders'||view.t==='folder';view=was?{t:'lib'}:{t:'folders'};search='';$('#q').value='';render();$('#main').scrollTop=0;};
+$('#foldb').onclick=()=>{endSel(true);const was=view.t==='folders'||view.t==='folder';view=was?{t:'lib'}:{t:'folders'};search='';$('#q').value='';render();scrollToCur();};
 $('#gridb').onclick=()=>{const f=view.t==='folders';if(f)fgrid=!fgrid;else grid=!grid;saveView();render();toast((f?fgrid:grid)?'Modo grelha':'Modo lista',1200);};
 $('#sortb').onclick=()=>{
   const it=Object.keys(SORTS).map(k=>({label:(sortK===k?'✓ ':'')+SORTS[k],fn:()=>{sortK=k;saveView();syncQueue();render();$('#main').scrollTop=0;}}));
@@ -1975,7 +1983,7 @@ function restoreResume(){
     audio.addEventListener('loadedmetadata',()=>{try{audio.currentTime=Math.min(pos,Math.max(0,(audio.duration||pos)-1));}catch(e){}rsWait=false;},{once:true});
     setTimeout(()=>{rsWait=false;},4000);
   }
-  setSession(t);updateUI();
+  setSession(t);focusCur=true;updateUI();
 }
 audio.addEventListener('pause',()=>saveResume(true));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)saveResume(true);});
