@@ -734,7 +734,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.16.1';
+const APP_VERSION='1.18.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -805,37 +805,42 @@ function removeBg(){try{localStorage.removeItem(BG_KEY);}catch(e){}applyBg();toa
    recarregar). Por isso guardamos a escolha (FS_KEY) e voltamos a entrar no próximo toque. */
 const FS_KEY='batuque_fs';
 const fsOn=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
-const fsWant=()=>{try{return localStorage.getItem(FS_KEY)==='1';}catch(e){return false;}};
-const fsSet=v=>{try{if(v)localStorage.setItem(FS_KEY,'1');else localStorage.removeItem(FS_KEY);}catch(e){}};
+/* o ecrã cheio vem ligado por defeito; só fica desligado se o utilizador o desligar nas Definições */
+const fsWant=()=>{try{return localStorage.getItem(FS_KEY)!=='0';}catch(e){return true;}};
+const fsSet=v=>{try{localStorage.setItem(FS_KEY,v?'1':'0');}catch(e){}};
 const isApp=()=>{try{return matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;}catch(e){return false;}};
+const fsNative=()=>{try{return matchMedia('(display-mode: fullscreen)').matches;}catch(e){return false;}};
 const fsReq=()=>{const el=document.documentElement,f=el.requestFullscreen||el.webkitRequestFullscreen;return f?f.call(el):Promise.reject();};
 async function toggleFS(){
+  if(fsNative()){toast('Na app instalada o ecrã cheio está sempre ligado');return;}
   try{
-    if(fsOn()){
-      await (document.exitFullscreen||document.webkitExitFullscreen).call(document);
+    if(fsWant()){
+      fsSet(false);
+      if(fsOn())await (document.exitFullscreen||document.webkitExitFullscreen).call(document);
     }else{
       if(!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen)){toast('O teu navegador não suporta o modo ecrã cheio');return;}
+      fsSet(true);
       await fsReq();
     }
   }catch(e){toast('Não foi possível mudar o modo ecrã cheio');}
   if($('#settings').classList.contains('show')&&sv==='main')renderSettings();
 }
-/* volta a entrar em ecrã cheio no próximo toque, se o utilizador o tinha ligado */
+/* mantém o ecrã cheio ligado: o Chrome só deixa entrar depois de um toque, por isso entra no primeiro toque
+   ao abrir a app e sempre que voltas a ela (o Chrome mostra o seu aviso de ecrã cheio nessa altura) */
+let fsArmed=false;
 function fsRestore(){
-  /* o aviso do Chrome («Para sair do ecrã inteiro…») aparece sempre que uma página pede ecrã cheio;
-     por isso a app instalada já abre em ecrã cheio sem pedir, e no navegador só entra quando o utilizador liga a opção */
-  if(true)return;
-  if(!fsWant()||fsOn())return;
+  if(fsNative())return;
+  if(!fsWant()||fsOn()||fsArmed)return;
+  fsArmed=true;
+  const evs=['pointerup','touchend','click'];
+  const off=()=>{fsArmed=false;evs.forEach(e=>document.removeEventListener(e,go,true));};
   const go=()=>{
     if(!fsWant()||fsOn()){off();return;}
-    fsReq().then(off).catch(()=>{});
+    fsReq().then(off).catch(off);
   };
-  const evs=['pointerup','touchend','click'];
-  const off=()=>evs.forEach(e=>document.removeEventListener(e,go,true));
   evs.forEach(e=>document.addEventListener(e,go,true));
 }
 ['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{
-  if(!fsOn())fsRestore();
   if($('#settings').classList.contains('show')&&sv==='main')renderSettings();
 }));
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)fsRestore();});
@@ -1029,7 +1034,7 @@ function renderSettings(){
     h+=`<div class="sgroup">Ecrã</div>
     <button class="srow" data-go="theme"><span class="si">${ic('palette')}</span><span class="st"><b>Tema</b><small>Paleta de cores, galeria e estilo do cartão</small></span>${ic('chev')}</button>
     <div class="srow"><span class="si">${ic('contrast')}</span><span class="st"><b>Aparência</b><small>Escuro, claro ou predefinido (segue o sistema)</small></span><div class="seg">${modes.map(([k,n])=>`<button data-mode="${k}" class="${CFG.mode===k?'on':''}">${n}</button>`).join('')}</div></div>
-    <button class="srow" data-act="fs"><span class="si">${ic('fullscreen')}</span><span class="st"><b>Modo ecrã cheio</b><small>Esconde as barras do telemóvel · o Chrome mostra um aviso ao entrar</small></span><span class="sw${fsOn()?' on':''}"></span></button>
+    <button class="srow" data-act="fs"><span class="si">${ic('fullscreen')}</span><span class="st"><b>Modo ecrã cheio</b><small>${fsNative()?'Sempre ligado na app instalada':'Ligado por defeito · esconde as barras e entra no primeiro toque'}</small></span><span class="sw${(fsNative()||fsWant())?' on':''}"></span></button>
     <div class="sgroup">Dados</div>
     <button class="srow" data-act="bkexp"><span class="si">${ic('down')}</span><span class="st"><b>Guardar cópia de segurança</b><small>Listas, favoritos, estatísticas e definições num ficheiro</small></span>${ic('chev')}</button>
     <button class="srow" data-act="bkimp"><span class="si">${ic('refresh')}</span><span class="st"><b>Restaurar cópia de segurança</b><small>Escolhe um ficheiro .batuque guardado antes</small></span>${ic('chev')}</button>
