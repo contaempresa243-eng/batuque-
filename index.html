@@ -324,6 +324,7 @@ a.srow{color:inherit;text-decoration:none}
 #dj[data-tab=mesa] .tb:not([data-tab=mesa]),#dj[data-tab=cues] .tb:not([data-tab=cues]),#dj[data-tab=fx] .tb:not([data-tab=fx]){display:none}
 #djrot{font-size:22px;line-height:1;padding:6px 10px;color:var(--tx)}
 @media (orientation:landscape) and (max-height:560px){
+  #dj{max-width:none;width:100%;margin:0}
   #dj .djh{padding:calc(4px + env(safe-area-inset-top)) 10px 2px}
   #dj .djh h2{font-size:16px}
   #djtabs{padding:0 8px 4px}#djtabs button{height:28px;font-size:12px}
@@ -542,6 +543,17 @@ header{position:relative}
 .row.sel .chk{background:var(--yel);border-color:var(--yel);color:#000}
 #sheet .box.qbox button{padding:10px 14px;font-size:15px}
 #sheet .btn{text-align:center;margin:10px 14px 0;width:calc(100% - 28px);border-radius:999px;font-weight:700;padding:13px}
+@media (orientation:landscape) and (max-height:560px){
+  #mixed,#settings,#app,#lyrics,#full{max-width:none;width:100%;margin:0}
+  #linfo .ib2,#sheet .box{max-width:none}
+  #full.show{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);grid-auto-rows:min-content;align-content:center;column-gap:22px;padding:calc(8px + env(safe-area-inset-top)) 24px calc(8px + env(safe-area-inset-bottom))}
+  #full.show>.fhead,#full.show>#vol,#full.show>#viz,#full.show>.tools,#full.show>#seek,#full.show>.times,#full.show>.ctl{grid-column:2}
+  #full.show>#bigcov{grid-column:1;grid-row:1/span 7;align-self:center;justify-self:center;width:min(100%,calc(100dvh - 40px));margin:0}
+  #full.show #viz{height:34px}
+}
+@media (orientation:landscape) and (min-height:561px){
+  #mixed,#settings,#app,#lyrics,#full,#dj{max-width:none;width:100%;margin:0}
+}
 </style>
 </head>
 <body>
@@ -704,7 +716,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.15.0';
+const APP_VERSION='1.15.3';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
