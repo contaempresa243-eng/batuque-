@@ -734,7 +734,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.18.0';
+const APP_VERSION='1.19.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -1309,9 +1309,14 @@ async function load(){
 /* ---------- Importar ---------- */
 const isAudio=f=>(f.type||'').startsWith('audio/')||/\.(mp3|m4a|aac|flac|wav|ogg|oga|opus|wma|amr)$/i.test(f.name||'');
 async function importFiles(list){
-  let n=0,skip=0;const total=list.length,folders=new Set();
+  let n=0,skip=0,moved=0;const total=list.length,folders=new Set();
   for(const {f,folder} of list){
-    if(folder&&tracks.some(x=>x.folder===folder&&x.fname===f.name&&x.blob.size===f.size)){skip++;continue;}
+    /* já existe? (também reconhece músicas importadas antes, só com o nome da última pasta, e arruma-as no caminho completo) */
+    const dup=folder&&tracks.find(x=>x.fname===f.name&&x.blob.size===f.size&&(x.folder===folder||(folder.includes('/')&&x.folder===folder.split('/').pop())));
+    if(dup){
+      if(dup.folder!==folder){try{dup.folder=folder;await tx('tracks','readwrite',s=>s.put(dup));moved++;}catch(e){}}
+      skip++;continue;
+    }
     try{
       const nm=parseName(f.name),tg=await readTags(f);
       const t={id:crypto.randomUUID(),title:tg.title||nm.title,artist:tg.artist||nm.artist,blob:f,added:Date.now()+n,fav:false,cover:tg.cover,coverTried:true,metaTried:true,genre:tg.genre||'',genreTried:true,folder:folder||'',fname:f.name};
@@ -1322,6 +1327,9 @@ async function importFiles(list){
   if(n){
     toast(n+(n>1?' músicas adicionadas':' música adicionada')+(folders.size?' · '+folders.size+(folders.size>1?' pastas':' pasta'):'')+(skip?' · '+skip+' já existiam':''),3200);
     await load();
+  }else if(moved){
+    toast(moved+(moved>1?' músicas arrumadas':' música arrumada')+' nas subpastas',3200);
+    await load();
   }else toast(skip?'Essas músicas já estavam na biblioteca':'Nenhuma música encontrada',2800);
 }
 $('#bkfile').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)backupImport(f);};
@@ -1330,10 +1338,11 @@ $('#file').onchange=async e=>{
   await importFiles(files.map(f=>({f,folder:''})));
 };
 const pickFiles=()=>$('#file').click();
-async function walkDir(h,name,out){
+async function walkDir(h,path,out){
+  /* path = caminho completo, ex.: Sertanejo/Paula Fernandes */
   for await(const [n,e] of h.entries()){
-    if(e.kind==='file'){const f=await e.getFile();if(isAudio(f))out.push({f,folder:name});}
-    else await walkDir(e,e.name,out);
+    if(e.kind==='file'){const f=await e.getFile();if(isAudio(f))out.push({f,folder:path});}
+    else await walkDir(e,path+'/'+e.name,out);
   }
 }
 async function pickFolder(){
@@ -1367,7 +1376,7 @@ $('#dirfile').onchange=async e=>{
   }
   await importFiles(files.map(f=>{
     const parts=(f.webkitRelativePath||'').split('/');
-    return {f,folder:hasPath?(parts.length>1?parts[parts.length-2]:parts[0]):fb};
+    return {f,folder:hasPath?(parts.length>1?parts.slice(0,-1).join('/'):''):fb};
   }));
 };
 /* botão + : ficheiros ou pasta */
@@ -1450,34 +1459,39 @@ function render(){
   }else if(view.t==='stats'){
     h+=statsHTML();
   }else if(view.t==='folders'){
-    const g=new Map();
-    tracks.forEach(t=>{const k=t.folder||'';const e=g.get(k)||{n:0,sz:0};e.n++;e.sz+=t.blob.size;g.set(k,e);});
+    const g=subFolders('');
+    const loose=tracks.filter(t=>!t.folder);
     const q=search.toLowerCase();
-    const arr=[...g.entries()].sort((a,b)=>(a[0]===''?1:b[0]===''?-1:a[0].localeCompare(b[0],'pt',{sensitivity:'base',numeric:true})))
-      .filter(([k])=>!q||folderName(k).toLowerCase().includes(q));
+    const arr=sortFolders(g);
+    if(loose.length)arr.push(['',{n:loose.length,sz:loose.reduce((s,t)=>s+t.blob.size,0)}]);
+    const arrF=arr.filter(([k])=>!q||folderName(k).toLowerCase().includes(q));
     h+=`<div class="head2"><button class="ib" id="fsback" aria-label="Voltar">${ic('back')}</button><h2>Pastas de música</h2></div>`;
-    if(!arr.length)h+=`<div class="empty">${ic('folder')}${search?'Nenhuma pasta encontrada.':'Ainda não tens pastas.<br>Toca no <b style="color:var(--yel)">+</b> e escolhe <b>Adicionar pasta</b>.'}</div>`;
-    if(fgrid&&arr.length)h+='<div class="fgl">';
-    arr.forEach(([k,e])=>{
-      const info=`<div class="meta"><div class="t">${esc(folderName(k))}</div><div class="a">${e.n} ${e.n>1?'músicas':'música'} · ${fmtSize(e.sz)}</div></div>`;
-      h+=fgrid?`<div class="fcard" data-folder="${encodeURIComponent(k)}"><div class="cov">${ic('folder',44)}</div>${info}</div>`
-        :`<div class="lcard" data-folder="${encodeURIComponent(k)}"><div class="cov">${ic('folder',24)}</div>${info}</div>`;
-    });
-    if(fgrid&&arr.length)h+='</div>';
+    if(!arrF.length)h+=`<div class="empty">${ic('folder')}${search?'Nenhuma pasta encontrada.':'Ainda não tens pastas.<br>Toca no <b style="color:var(--yel)">+</b> e escolhe <b>Adicionar pasta</b>.'}</div>`;
+    if(arrF.length)h+=folderCards(arrF);
   }else{
     if(view.t==='folder'){
-      h+=`<div class="head2"><button class="ib" id="fdback">${ic('back')}</button><h2>${esc(folderName(view.name))}</h2>
+      const pf=parentFolder(view.name);
+      h+=`<div class="head2"><button class="ib" id="fdback">${ic('back')}</button><div style="flex:1;min-width:0"><h2>${esc(folderName(view.name))}</h2>${pf!==null?`<div class="a">${esc(folderPath(pf))}</div>`:''}</div>
       <button class="ib" id="fdmore">${ic('more')}</button></div>`;
     }else if(view.t==='list'){
       const l=lists.find(x=>x.id===view.id);
       h+=`<div class="head2"><button class="ib" id="lback">${ic('back')}</button><h2>${esc(l?l.name:'')}</h2>
       <button class="ib" id="lmore">${ic('more')}</button></div>`;
     }else if(view.t==='fav')h+=`<div class="head2"><button class="ib" id="favback" aria-label="Voltar">${ic('back')}</button><h2>Favoritos</h2></div>`;
+    let subsN=0;
+    if(view.t==='folder'&&view.name!==''){
+      const q2=search.toLowerCase();
+      const subs=sortFolders(subFolders(view.name)).filter(([k])=>!q2||folderName(k).toLowerCase().includes(q2));
+      subsN=subs.length;
+      if(subsN)h+=`<div class="a" style="padding:2px 2px 8px;font-weight:600">Subpastas · ${subsN}</div>`+folderCards(subs);
+    }
     const arr=visible();
     if(!arr.length){
-      if(view.t==='lib'&&!tracks.length)h+=`<div class="empty">${ic('music')}A tua biblioteca está vazia.<br>Toca no <b style="color:var(--yel)">+</b> para adicionar músicas ou uma pasta do telemóvel.${drumsSVG()}</div>`;
+      if(subsN){}
+      else if(view.t==='lib'&&!tracks.length)h+=`<div class="empty">${ic('music')}A tua biblioteca está vazia.<br>Toca no <b style="color:var(--yel)">+</b> para adicionar músicas ou uma pasta do telemóvel.${drumsSVG()}</div>`;
       else h+=`<div class="empty">${ic(view.t==='fav'?'heart':'music')}${search?'Nada encontrado.':view.t==='fav'?'Toca no coração para guardar favoritos.':'Esta lista está vazia.'}</div>`;
     }else{
+      if(subsN)h+=`<div class="a" style="padding:14px 2px 8px;font-weight:600">Músicas · ${arr.length}</div>`;
       if((view.t==='list'||view.t==='folder')&&!search)h+=`<div class="parow"><button class="btn" id="playall" style="margin:0">▶ Tocar tudo</button><button class="pshuf" id="pshuf" aria-label="Aleatório">${ic('shuf',24)}</button></div>`;
       h+=grid?'<div class="gl">'+arr.map(gridHTML).join('')+'</div>':arr.map(rowHTML).join('');
     }
@@ -1487,7 +1501,7 @@ function render(){
   const stm=$('#stmore');if(stm)stm.onclick=statsMenu;
   const stg=$('#stgenre');if(stg)stg.onclick=folderStyleMenu;
   const sb=$('#fsback');if(sb)sb.onclick=()=>{view={t:'lib'};search='';$('#q').value='';render();scrollToCur();};
-  const fb=$('#fdback');if(fb)fb.onclick=()=>{view={t:'folders'};search='';$('#q').value='';render();};
+  const fb=$('#fdback');if(fb)fb.onclick=()=>{const pf=parentFolder(view.name);view=pf!==null?{t:'folder',name:pf}:{t:'folders'};search='';$('#q').value='';render();};
   const fm=$('#fdmore');if(fm)fm.onclick=folderMenu;
   const fvb=$('#favback');if(fvb)fvb.onclick=()=>{view={t:'lists'};search='';$('#q').value='';render();};
   const lb=$('#lback');if(lb)lb.onclick=()=>{view={t:'lists'};render();};
@@ -1623,13 +1637,37 @@ async function newList(){
   const l={id:crypto.randomUUID(),name,ids:[]};
   await tx('lists','readwrite',s=>s.put(l));lists.push(l);render();return l;
 }
-const folderName=k=>k===''?'Outras músicas':k;
+const folderName=k=>k===''?'Outras músicas':String(k).split('/').pop();
+const folderPath=k=>k===''?'Outras músicas':String(k).split('/').join(' › ');
+const parentFolder=k=>{const i=String(k).lastIndexOf('/');return i<0?null:String(k).slice(0,i);};
+const inFolder=(f,k)=>f===k||(k!==''&&String(f||'').startsWith(k+'/'));
+/* pastas diretamente dentro de prefix ('' = raiz); os totais incluem as subpastas */
+function subFolders(prefix){
+  const g=new Map(),p=prefix?prefix+'/':'';
+  tracks.forEach(t=>{
+    const f=t.folder||'';if(!f||f===prefix||!f.startsWith(p))return;
+    const k=p+f.slice(p.length).split('/')[0];
+    const e=g.get(k)||{n:0,sz:0};e.n++;e.sz+=t.blob.size;g.set(k,e);
+  });
+  return g;
+}
+const sortFolders=m=>[...m.entries()].sort((a,b)=>a[0].localeCompare(b[0],'pt',{sensitivity:'base',numeric:true}));
+function folderCards(arr){
+  const one=([k,e])=>{
+    const info=`<div class="meta"><div class="t">${esc(folderName(k))}</div><div class="a">${e.n} ${e.n>1?'músicas':'música'} · ${fmtSize(e.sz)}</div></div>`;
+    return fgrid?`<div class="fcard" data-folder="${encodeURIComponent(k)}"><div class="cov">${ic('folder',44)}</div>${info}</div>`
+      :`<div class="lcard" data-folder="${encodeURIComponent(k)}"><div class="cov">${ic('folder',24)}</div>${info}</div>`;
+  };
+  return fgrid?'<div class="fgl">'+arr.map(one).join('')+'</div>':arr.map(one).join('');
+}
 function folderMenu(){
-  const ids=tracks.filter(t=>(t.folder||'')===view.name).map(t=>t.id);
+  const ids=tracks.filter(t=>inFolder(t.folder||'',view.name)).map(t=>t.id);
+  const hasSubs=view.name!==''&&subFolders(view.name).size>0;
   sheet(folderName(view.name),[
-    {label:'Apagar as '+ids.length+' músicas desta pasta',danger:true,fn:async()=>{
-      if(!ids.length||!await askOk('Apagar pasta','Apagar '+ids.length+(ids.length>1?' músicas':' música')+' da pasta "'+folderName(view.name)+'" da biblioteca?\nEsta ação não pode ser desfeita.','Apagar',true))return;
-      await delTracks(ids);view={t:'folders'};render();toast('Pasta apagada');
+    {label:'Apagar '+(hasSubs?'esta pasta e as subpastas':'as músicas desta pasta')+' ('+ids.length+')',danger:true,fn:async()=>{
+      if(!ids.length||!await askOk('Apagar pasta','Apagar '+ids.length+(ids.length>1?' músicas':' música')+' da pasta "'+folderName(view.name)+'"'+(hasSubs?' e das suas subpastas':'')+' da biblioteca?\nEsta ação não pode ser desfeita.','Apagar',true))return;
+      const pf=parentFolder(view.name);
+      await delTracks(ids);view=(pf!==null&&tracks.some(t=>inFolder(t.folder||'',pf)))?{t:'folder',name:pf}:{t:'folders'};render();toast('Pasta apagada');
     }}
   ]);
 }
@@ -3331,7 +3369,7 @@ addEventListener('resize',placeMini);
 function foldMark(){
   const t=cur(),f=t&&t.folder;
   document.querySelectorAll('.lcard[data-folder],.fcard[data-folder]').forEach(el=>{
-    const on=!!f&&decodeURIComponent(el.dataset.folder)===f;
+    const on=!!f&&inFolder(f,decodeURIComponent(el.dataset.folder));
     el.classList.toggle('fplay',on);el.classList.toggle('fpaused',on&&audio.paused);
     let b=el.querySelector('.fbadge');
     if(on&&!b){b=document.createElement('div');b.className='fbadge';b.innerHTML='<i></i><i></i><i></i><span>A tocar</span>';el.appendChild(b);}
@@ -3547,7 +3585,7 @@ async function setGenreSel(){
 }
 function folderStyleMenu(){
   const ks=[...new Set(tracks.map(t=>t.folder||''))].sort((a,b)=>a===''?1:b===''?-1:a.localeCompare(b,'pt'));
-  sheet('Estilo das pastas',ks.map(k=>({label:folderName(k)+' · '+(folderGenre(k)||'sem estilo'),fn:()=>genreSheet('Estilo de "'+folderName(k)+'"',g=>{
+  sheet('Estilo das pastas',ks.map(k=>({label:folderPath(k)+' · '+(folderGenre(k)||'sem estilo'),fn:()=>genreSheet('Estilo de "'+folderName(k)+'"',g=>{
     if(g)FG[k]=g;else delete FG[k];
     try{localStorage.setItem(FG_KEY,JSON.stringify(FG));}catch(e){}
     render();toast(g?'Pasta definida como '+g:'Estilo da pasta removido');
