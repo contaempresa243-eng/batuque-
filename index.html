@@ -196,6 +196,17 @@ a.srow{color:inherit;text-decoration:none}
 .xfhint{padding:0 14px 6px;font-size:12px;color:var(--mut);line-height:1.4}
 #sheet{position:fixed;inset:0;background:#000a;z-index:30;display:none;align-items:flex-end;justify-content:center}
 #sheet.show{display:flex}
+#cedit{position:fixed;inset:0;background:#000d;z-index:45;display:none;align-items:center;justify-content:center;padding:16px}
+#cedit.show{display:flex}
+.cebox{width:min(100%,400px);background:var(--card);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:12px;max-height:100%;overflow:auto}
+.cebox h3{font-size:17px}
+#cecv{width:100%;aspect-ratio:1;border-radius:16px;touch-action:none;background:#111;cursor:grab;display:block}
+.cezoom{display:flex;align-items:center;gap:10px;color:var(--mut);font-size:13px}
+.cezoom input{flex:1;accent-color:var(--yel)}
+.cezoom output{min-width:44px;text-align:right;font-variant-numeric:tabular-nums}
+.cefit,.cebtn{display:flex;gap:10px}
+.cefit button,.cebtn button{flex:1;padding:11px 8px;border-radius:12px;background:var(--card2);color:var(--tx);font-size:14px}
+.cebtn button.ok{background:var(--yel);color:var(--onp);font-weight:700}
 #sheet .box{background:var(--card);width:100%;max-width:640px;border-radius:20px 20px 0 0;padding:12px 8px calc(12px + env(safe-area-inset-bottom));max-height:52dvh;overflow:auto}
 #sheet h3{padding:2px 14px 6px;font-size:14px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #sheet button{display:block;width:100%;text-align:left;padding:10px 14px;font-size:15px;border-radius:10px}
@@ -648,6 +659,7 @@ header{position:relative}
 <input type="file" id="file" accept="audio/*" multiple hidden>
 <input type="file" id="dirfile" webkitdirectory multiple hidden>
 <input type="file" id="imgfile" accept="image/*" hidden>
+<div id="cedit" role="dialog" aria-label="Ajustar capa"></div>
 <input type="file" id="bgfile" accept="image/*" hidden>
 <input type="file" id="bkfile" hidden>
 <audio id="audio" preload="metadata"></audio>
@@ -708,11 +720,15 @@ const tx=(st,mode,fn)=>DB.then(d=>new Promise((res,rej)=>{
 
 /* ---------- Estado ---------- */
 let tracks=[],lists=[],view={t:'lib'},search='',sel=null,lpFired=false,sortK=null,grid=false,fgrid=false;
-try{const v=JSON.parse(localStorage.getItem('batuque_view')||'{}');sortK=v.s||null;grid=!!v.g;fgrid=!!v.f;}catch(e){}
-const saveView=()=>{try{localStorage.setItem('batuque_view',JSON.stringify({s:sortK,g:grid,f:fgrid}));}catch(e){}};
-const SORTS={az:'A – Z',za:'Z – A',sup:'Tamanho: crescente',sdn:'Tamanho: decrescente',new:'Mais recentes',old:'Mais antigas'};
+let rseed=1;
+try{const v=JSON.parse(localStorage.getItem('batuque_view')||'{}');sortK=v.s||null;grid=!!v.g;fgrid=!!v.f;rseed=v.r||1;}catch(e){}
+const saveView=()=>{try{localStorage.setItem('batuque_view',JSON.stringify({s:sortK,g:grid,f:fgrid,r:rseed}));}catch(e){}};
+const SORTS={az:'A – Z',za:'Z – A',sup:'Tamanho: crescente',sdn:'Tamanho: decrescente',new:'Mais recentes',old:'Mais antigas',rand:'Aleatório'};
+/* ordem aleatória estável: só muda quando se volta a escolher «Aleatório» */
+function randKey(id){let x=(rseed^0x9e3779b9)>>>0;for(let i=0;i<id.length;i++)x=Math.imul(x^id.charCodeAt(i),16777619)>>>0;x^=x>>>15;x=Math.imul(x,2246822519)>>>0;return x^(x>>>13);}
 function ordered(arr){
   if(!sortK)return arr;
+  if(sortK==='rand')return arr.map(t=>[randKey(t.id),t]).sort((a,b)=>a[0]-b[0]).map(p=>p[1]);
   const c=(a,b)=>(a||'').localeCompare(b||'','pt',{sensitivity:'base',numeric:true});
   const f={az:(a,b)=>c(a.title,b.title),za:(a,b)=>c(b.title,a.title),sup:(a,b)=>a.blob.size-b.blob.size,sdn:(a,b)=>b.blob.size-a.blob.size,new:(a,b)=>b.added-a.added,old:(a,b)=>a.added-b.added}[sortK];
   return f?arr.slice().sort(f):arr;
@@ -734,7 +750,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.20.0';
+const APP_VERSION='1.21.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -1293,8 +1309,78 @@ let coverTarget=null;
 const pickCover=t=>{coverTarget=t;$('#imgfile').click();};
 $('#imgfile').onchange=e=>{
   const f=e.target.files[0];e.target.value='';
-  if(f&&coverTarget)setCover(coverTarget,f);
+  if(f&&coverTarget)coverEdit(coverTarget,f);
 };
+/* ---------- Ajustar a capa (zoom e posição) ----------
+   A capa é guardada como imagem quadrada, tal como aparece no cartão do ecrã completo. */
+let ce=null;
+async function coverEdit(t,blob){
+  let im;try{im=await loadImg(blob);}catch(e){toast('Não foi possível abrir a imagem');return;}
+  const w=im.naturalWidth,h=im.naturalHeight;if(!w||!h){toast('Imagem inválida');return;}
+  const kc=Math.max(1/w,1/h),kn=Math.min(1/w,1/h);        /* escala «preencher» e «encaixar» (por unidade do quadrado) */
+  ce={t,im,w,h,kc,fmin:kn/kc,fmax:4,f:1,ox:0,oy:0};
+  const m=$('#cedit');
+  m.innerHTML=`<div class="cebox"><h3>Ajustar capa</h3>
+    <canvas id="cecv" width="640" height="640"></canvas>
+    <div class="cezoom"><span>Zoom</span><input type="range" id="cezm" min="0" max="1000" step="1"><output id="cezo"></output></div>
+    <div class="cefit"><button id="cefill" type="button">Preencher</button><button id="cefitb" type="button">Encaixar tudo</button></div>
+    <div class="cebtn"><button id="cecan" type="button">Cancelar</button><button id="cesave" type="button" class="ok">Guardar</button></div></div>`;
+  m.classList.add('show');
+  ceSet(1);ceClamp();ceDraw();
+  const cv=$('#cecv'),zm=$('#cezm');
+  zm.oninput=()=>{ceSet(ceFromSlider(+zm.value/1000));ceClamp();ceDraw();};
+  $('#cefill').onclick=()=>{ceSet(1);ce.ox=ce.oy=0;ceClamp();ceDraw();};
+  $('#cefitb').onclick=()=>{ceSet(ce.fmin);ce.ox=ce.oy=0;ceClamp();ceDraw();};
+  $('#cecan').onclick=ceClose;
+  $('#cesave').onclick=ceSave;
+  /* arrastar com um dedo; juntar dois dedos para o zoom */
+  const pts=new Map();let d0=0,f0=1,last=null;
+  cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);pts.set(e.pointerId,[e.clientX,e.clientY]);last=[e.clientX,e.clientY];if(pts.size===2){const a=[...pts.values()];d0=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]);f0=ce.f;}};
+  cv.onpointermove=e=>{
+    if(!pts.has(e.pointerId))return;pts.set(e.pointerId,[e.clientX,e.clientY]);
+    const r=cv.getBoundingClientRect();
+    if(pts.size>=2){const a=[...pts.values()];const d=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]);if(d0>0){ceSet(f0*d/d0);}}
+    else if(last){ce.ox+=(e.clientX-last[0])/r.width;ce.oy+=(e.clientY-last[1])/r.height;}
+    last=[e.clientX,e.clientY];ceClamp();ceDraw();
+  };
+  const up=e=>{pts.delete(e.pointerId);last=pts.size===1?[...pts.values()][0]:null;};
+  cv.onpointerup=cv.onpointercancel=up;
+  cv.onwheel=e=>{e.preventDefault();ceSet(ce.f*(e.deltaY<0?1.08:1/1.08));ceClamp();ceDraw();};
+}
+const ceFromSlider=p=>ce.fmin*Math.pow(ce.fmax/ce.fmin,p);          /* escala logarítmica: zoom suave */
+const ceToSlider=f=>Math.log(f/ce.fmin)/Math.log(ce.fmax/ce.fmin);
+function ceSet(f){ce.f=Math.max(ce.fmin,Math.min(ce.fmax,f));}
+function ceClamp(){
+  const dw=ce.w*ce.kc*ce.f,dh=ce.h*ce.kc*ce.f;           /* tamanho desenhado (em quadrados) */
+  const mx=Math.max(0,(dw-1)/2),my=Math.max(0,(dh-1)/2);
+  ce.ox=Math.max(-mx,Math.min(mx,dw<=1?0:ce.ox));ce.oy=Math.max(-my,Math.min(my,dh<=1?0:ce.oy));
+}
+function ceRender(ctx,S){
+  const dw=ce.w*ce.kc*ce.f*S,dh=ce.h*ce.kc*ce.f*S,x=S/2-dw/2+ce.ox*S,y=S/2-dh/2+ce.oy*S;
+  ctx.fillStyle='#111';ctx.fillRect(0,0,S,S);
+  if(dw<S-1||dh<S-1){                                      /* sobra espaço: fundo desfocado da própria imagem */
+    const k=Math.max(S/ce.w,S/ce.h)*1.15,bw=ce.w*k,bh=ce.h*k;
+    try{ctx.filter='blur('+Math.round(S/22)+'px) brightness(.7)';}catch(e){}
+    ctx.drawImage(ce.im,S/2-bw/2,S/2-bh/2,bw,bh);
+    try{ctx.filter='none';}catch(e){}
+  }
+  ctx.drawImage(ce.im,x,y,dw,dh);
+}
+function ceDraw(){
+  const cv=$('#cecv');if(!cv||!ce)return;
+  ceRender(cv.getContext('2d'),cv.width);
+  $('#cezm').value=Math.round(ceToSlider(ce.f)*1000);
+  $('#cezo').textContent=Math.round(ce.f*100)+'%';
+}
+function ceClose(){$('#cedit').classList.remove('show');$('#cedit').innerHTML='';ce=null;}
+async function ceSave(){
+  if(!ce)return;
+  const c=document.createElement('canvas');c.width=c.height=900;
+  ceRender(c.getContext('2d'),900);
+  const b=await new Promise(r=>c.toBlob(r,'image/jpeg',.92));
+  const t=ce.t;ceClose();
+  if(b)await setCover(t,b);else toast('Não foi possível guardar a capa');
+}
 
 async function load(){
   tracks=await tx('tracks','readonly',s=>s.getAll());
@@ -1534,7 +1620,11 @@ $('#fab').onclick=addMenu;
 $('#foldb').onclick=()=>{endSel(true);const was=view.t==='folders'||view.t==='folder';view=was?{t:'lib'}:{t:'folders'};search='';$('#q').value='';render();scrollToCur();};
 $('#gridb').onclick=()=>{const f=view.t==='folders';if(f)fgrid=!fgrid;else grid=!grid;saveView();render();toast((f?fgrid:grid)?'Modo grelha':'Modo lista',1200);};
 $('#sortb').onclick=()=>{
-  const it=Object.keys(SORTS).map(k=>({label:(sortK===k?'✓ ':'')+SORTS[k],fn:()=>{sortK=k;saveView();syncQueue();render();$('#main').scrollTop=0;}}));
+  const it=Object.keys(SORTS).map(k=>({label:(sortK===k?'✓ ':'')+SORTS[k]+(k==='rand'&&sortK==='rand'?' (misturar de novo)':''),fn:()=>{
+    if(k==='rand')rseed=(Math.random()*4294967295)>>>0||1;
+    sortK=k;saveView();syncQueue();render();$('#main').scrollTop=0;
+    if(k==='rand')toast('Biblioteca em ordem aleatória',1600);
+  }}));
   it.push({label:'Repor',fn:()=>{sortK=null;saveView();syncQueue();render();$('#main').scrollTop=0;}});
   sheet('Organizar',it);
 };
@@ -1610,6 +1700,7 @@ function trackMenu(t,full){
     ];
     if(view.t==='list')it.push(rmList);
     it.push({label:t.cover?'Mudar capa':'Adicionar capa',fn:()=>pickCover(t)});
+    if(t.cover)it.push({label:'Ajustar zoom da capa',fn:()=>coverEdit(t,t.cover)});
     if(t.cover)it.push({label:'Remover capa',fn:()=>setCover(t,null)});
   }else{
     it=[
@@ -3445,7 +3536,11 @@ $('#fclose').innerHTML=ic('down');$('#fmore').innerHTML=ic('more');
 $('#tshare').innerHTML=ic('share');$('#teq').innerHTML=ic('tune');$('#tcover').innerHTML=ic('image');$('#tqueue').innerHTML=ic('queue');
 $('#tshare').onclick=()=>shareTrack(cur());
 $('#teq').onclick=openEQ;
-$('#tcover').onclick=()=>{const t=cur();if(t)pickCover(t);};
+$('#tcover').onclick=()=>{
+  const t=cur();if(!t)return;
+  if(!t.cover){pickCover(t);return;}
+  sheet('Capa',[{label:'Ajustar zoom da capa',fn:()=>coverEdit(t,t.cover)},{label:'Escolher outra imagem',fn:()=>pickCover(t)},{label:'Remover capa',danger:true,fn:()=>setCover(t,null)}]);
+};
 $('#tqueue').onclick=openQueue;
 $('#bshuf').innerHTML=ic('shuf');$('#bprev').innerHTML=ic('prev');$('#bnext').innerHTML=ic('next');
 $('#fab').innerHTML=ic('plus',22);
