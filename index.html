@@ -751,7 +751,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.23.0';
+const APP_VERSION='1.24.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -3478,16 +3478,25 @@ function placeMini(){
 addEventListener('resize',placeMini);
 (function(){
   const m=$('#mini');
-  let pid=null,sx=0,sy=0,ox=0,oy=0,moved=false;
+  let pid=null,sx=0,sy=0,ox=0,oy=0,moved=false,t0=0,mode=null;
+  /* deslizar rápido na horizontal = mudar de música; arrastar na vertical, ou depois de segurar um instante, = mover o cartão */
   m.addEventListener('pointerdown',e=>{
     if(e.target.closest('button'))return;
-    pid=e.pointerId;sx=e.clientX;sy=e.clientY;ox=m.offsetLeft;oy=m.offsetTop;moved=false;
+    pid=e.pointerId;sx=e.clientX;sy=e.clientY;ox=m.offsetLeft;oy=m.offsetTop;moved=false;t0=Date.now();mode=null;
     try{m.setPointerCapture(pid);}catch(x){}
   });
   m.addEventListener('pointermove',e=>{
     if(e.pointerId!==pid)return;
     const dx=e.clientX-sx,dy=e.clientY-sy;
     if(!moved&&Math.hypot(dx,dy)<6)return;
+    if(mode===null)mode=(Date.now()-t0<300&&Math.abs(dx)>Math.abs(dy)*1.3)?'swipe':'drag';
+    if(mode==='swipe'){
+      moved=true;
+      m.style.transition='none';
+      m.style.transform='translateX('+Math.max(-70,Math.min(70,dx*.5))+'px)';
+      m.style.opacity=String(1-Math.min(.5,Math.abs(dx)/260));
+      return;
+    }
     moved=true;m.classList.add('drag');
     const w=m.offsetWidth,h=m.offsetHeight;
     m.style.left=Math.min(Math.max(0,ox+dx),Math.max(0,innerWidth-w))+'px';
@@ -3496,6 +3505,19 @@ addEventListener('resize',placeMini);
   const end=e=>{
     if(e.pointerId!==pid)return;
     pid=null;m.classList.remove('drag');
+    if(mode==='swipe'){
+      mode=null;moved=false;
+      const dx=e.clientX-sx,go=e.type==='pointerup'&&Math.abs(dx)>=50;
+      m.style.transition='transform .14s ease,opacity .14s ease';
+      m.style.transform=go?'translateX('+(dx>0?56:-56)+'px)':'';
+      m.style.opacity=go?'.15':'';
+      if(go){
+        if(dx>0)next(false);else prev(true);           /* direita = avança · esquerda = recua */
+        setTimeout(()=>{m.style.transform='';m.style.opacity='';},140);
+      }
+      setTimeout(()=>{m.style.transition='';},320);
+      return;
+    }
     if(moved){
       const w=m.offsetWidth,h=m.offsetHeight;
       miniPos={x:m.offsetLeft/((innerWidth-w)||1),y:m.offsetTop/((innerHeight-h)||1)};
@@ -3507,6 +3529,29 @@ addEventListener('resize',placeMini);
   m.addEventListener('pointerup',end);
   m.addEventListener('pointercancel',end);
 })();
+
+/* deslizar o cartão do leitor (ecrã da letra): direita = avança · esquerda = recua */
+function swipeNav(el){
+  let pid=null,sx=0,sy=0,t0=0,swallow=false;
+  el.style.touchAction='pan-y';
+  el.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;pid=e.pointerId;sx=e.clientX;sy=e.clientY;t0=Date.now();});
+  const end=e=>{
+    if(e.pointerId!==pid)return;pid=null;
+    if(e.type!=='pointerup')return;
+    const dx=e.clientX-sx,dy=e.clientY-sy;
+    if(Math.abs(dx)<50||Math.abs(dx)<Math.abs(dy)*1.5||Date.now()-t0>700)return;
+    swallow=true;setTimeout(()=>{swallow=false;},350);
+    if(dx>0)next(false);else prev(true);
+  };
+  /* só depois de o dedo começar a deslizar é que o cartão «prende» o toque (senão os toques simples deixavam de funcionar) */
+  el.addEventListener('pointermove',e=>{
+    if(e.pointerId!==pid)return;
+    if(Math.abs(e.clientX-sx)>10&&Math.abs(e.clientX-sx)>Math.abs(e.clientY-sy)){try{el.setPointerCapture(pid);}catch(x){}}
+  });
+  el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
+  el.addEventListener('click',e=>{if(swallow){e.stopPropagation();e.preventDefault();swallow=false;}},true);
+}
+swipeNav($('#lplayer'));
 
 /* ---------- UI do leitor ---------- */
 function foldMark(){
