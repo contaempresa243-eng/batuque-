@@ -423,6 +423,7 @@ a.srow{color:inherit;text-decoration:none}
 .lbtn{width:60px;height:60px;border-radius:50%;background:var(--yel);color:var(--onp);display:grid;place-items:center;box-shadow:0 6px 18px #0006}
 .lbtn svg{width:28px;height:28px}
 .lbtn.sm{width:46px;height:46px;background:var(--card2);color:var(--tx);justify-self:start}
+.lacts{display:flex;gap:10px;justify-self:start}
 .lbtn.sm svg{width:22px;height:22px}
 .lbtn:active{transform:scale(.95)}
 .lbtn.busy{opacity:.6;pointer-events:none}
@@ -631,7 +632,7 @@ header{position:relative}
   <div class="ltr" id="ltr"><button data-l="orig">Original</button><button data-l="pt">Português</button><button data-l="en">English</button></div>
   <div id="ltitle"></div>
   <div id="ltext"></div>
-  <div class="lfoot"><button class="lbtn pill" id="lknow" aria-label="Sabias?"></button><button class="lbtn" id="lsearch" aria-label="Procurar letra"></button><button class="lbtn sm" id="lprint" aria-label="Imprimir letra"></button></div>
+  <div class="lfoot"><button class="lbtn pill" id="lknow" aria-label="Sabias?"></button><button class="lbtn" id="lsearch" aria-label="Procurar letra"></button><div class="lacts"><button class="lbtn sm" id="lprint" aria-label="Imprimir letra"></button><button class="lbtn sm" id="lshare" aria-label="Partilhar letra"></button></div></div>
 </div>
 <div id="linfo"><div class="ib2"><div class="ihead"><h2 id="linfot"></h2><button id="linfox" aria-label="Fechar"></button></div><div class="ibody" id="linfob"></div></div></div>
 <div id="mixed">
@@ -750,7 +751,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.21.0';
+const APP_VERSION='1.23.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -1611,8 +1612,12 @@ $('#main').addEventListener('click',e=>{
   const id=row.dataset.id,t=byId(id),act=e.target.closest('[data-act]')?.dataset.act;
   if(act==='fav'){toggleFav(t);return;}
   if(act==='more'){trackMenu(t);return;}
+  /* tocar na capa abre o ecrã completo (se já for a música atual, só abre; não mexe na reprodução) */
+  const onCov=!!e.target.closest('.cov');
+  if(onCov&&cur()&&cur().id===id){openFull();return;}
   const arr=visible().map(x=>x.id);
   play(arr,arr.indexOf(id),view.t==='fav'?'Favoritos':view.t==='list'?(lists.find(l=>l.id===view.id)||{}).name:view.t==='folder'?folderName(view.name):'Biblioteca',{k:view.t,id:view.id,f:!!search});
+  if(onCov)openFull();
 });
 document.querySelectorAll('nav button[data-v]').forEach(b=>b.onclick=()=>{endSel(true);view={t:b.dataset.v};search='';$('#q').value='';render();scrollToCur();});
 $('#q').oninput=e=>{search=e.target.value.trim();render();};
@@ -3184,6 +3189,24 @@ async function lySetLang(l){
   lyBusy=false;
   if(cur()&&cur().id===id)lyRender();
 }
+/* partilhar a letra (no idioma que está a ser mostrado); sem partilha do sistema, copia o texto */
+async function lyShare(){
+  const t=cur(),x=lyShownText();
+  if(!t||!x){toast('Não há letra para partilhar',3000);return;}
+  const art=/desconhecid/i.test(t.artist||'')?'':t.artist;
+  const lang=lyLang==='orig'?'':(lyLang==='pt'?' (Português)':' (English)');
+  const head=t.title+(art?' — '+art:'')+lang;
+  const text=head+'\n\n'+x.trim()+'\n\n— Batuque';
+  try{
+    if(navigator.share){await navigator.share({title:t.title,text});return;}
+  }catch(e){if(e&&e.name==='AbortError')return;}
+  try{await navigator.clipboard.writeText(text);toast('Letra copiada. Cola onde quiseres enviar.',3200);}
+  catch(e){
+    const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();
+    let ok=false;try{ok=document.execCommand('copy');}catch(_){}ta.remove();
+    toast(ok?'Letra copiada. Cola onde quiseres enviar.':'Não foi possível partilhar a letra',3200);
+  }
+}
 function lyPrint(){
   const t=cur(),x=lyShownText();
   if(!t||!x){toast('Não há letra para imprimir',3000);return;}
@@ -3404,10 +3427,10 @@ $('#linfob').addEventListener('click',e=>{
 $('#linfox').innerHTML=ic('close');$('#linfox').onclick=()=>{relStop();$('#linfo').classList.remove('show');};
 $('#linfo').addEventListener('pointerdown',e=>{if(e.target.id==='linfo'){relStop();$('#linfo').classList.remove('show');}});
 $('#lyrb').innerHTML=ic('lyrics',24);
-$('#lyback').innerHTML=ic('back');$('#lsearch').innerHTML=ic('search');$('#lprint').innerHTML=ic('print');
+$('#lyback').innerHTML=ic('back');$('#lsearch').innerHTML=ic('search');$('#lprint').innerHTML=ic('print');$('#lshare').innerHTML=ic('share');
 $('#lyrb').onclick=openLyrics;
 $('#lyback').onclick=()=>$('#lyrics').classList.remove('show');
-$('#lsearch').onclick=lySearch;$('#lprint').onclick=lyPrint;
+$('#lsearch').onclick=lySearch;$('#lprint').onclick=lyPrint;$('#lshare').onclick=lyShare;
 $('#ltr').onclick=e=>{const b=e.target.closest('button');if(b)lySetLang(b.dataset.l);};
 audio.addEventListener('timeupdate',()=>{const p=$('#lprog');if(p){const d=audio.duration||0;p.style.width=d?(audio.currentTime/d*100)+'%':'0';}});
 
