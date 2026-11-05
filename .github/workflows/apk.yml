@@ -42,10 +42,12 @@ jobs:
 
           dependencies {
               implementation "androidx.documentfile:documentfile:1.0.1"
+              implementation "androidx.media:media:1.7.0"
           }
           GRADLE
           M=android/app/src/main/AndroidManifest.xml
           sed -i 's#<application#<uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n    <application#' $M
+          sed -i 's#</application>#    <service android:name=".MediaService" android:exported="false" android:foregroundServiceType="mediaPlayback" />\n    </application>#' $M
           if [ -f icon-512.png ]; then
             for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
               dir=android/app/src/main/res/mipmap-${d%%:*}; px=${d##*:}
