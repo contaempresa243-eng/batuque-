@@ -9,11 +9,23 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(FolderPickerPlugin.class);
+        registerPlugin(BatuqueMediaPlugin.class);
         super.onCreate(savedInstanceState);
+        try {
+            // permite que a música volte a tocar a partir da notificação, sem um toque novo no ecrã
+            getBridge().getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false);
+        } catch (Exception e) { }
         // Android 13+: pedir permissão para mostrar a notificação do leitor
         if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 1);
         }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        // mantém o JavaScript a correr em segundo plano (botões da notificação, passar à música seguinte)
+        try { getBridge().getWebView().resumeTimers(); } catch (Exception e) { }
     }
 }
