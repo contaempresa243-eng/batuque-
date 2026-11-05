@@ -751,7 +751,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.24.0';
+const APP_VERSION='1.24.1';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -1055,6 +1055,7 @@ function renderSettings(){
     <div class="sgroup">Dados</div>
     <button class="srow" data-act="bkexp"><span class="si">${ic('down')}</span><span class="st"><b>Guardar cópia de segurança</b><small>Listas, favoritos, estatísticas e definições num ficheiro</small></span>${ic('chev')}</button>
     <button class="srow" data-act="bkimp"><span class="si">${ic('refresh')}</span><span class="st"><b>Restaurar cópia de segurança</b><small>Escolhe um ficheiro .batuque guardado antes</small></span>${ic('chev')}</button>
+    <button class="srow" data-act="dupes"><span class="si">${ic('trash')}</span><span class="st"><b>Remover músicas repetidas</b><small>Fica uma cópia de cada ficheiro igual</small></span>${ic('chev')}</button>
     <div class="sgroup">Sobre a app</div>
     <button class="srow" data-act="install"><span class="si">${ic('plus')}</span><span class="st"><b>${isInstalled()?'App instalada':'Instalar app'}</b><small>${isInstalled()?'A notificação mostra o nome Batuque':'Notificação com o nome Batuque e ícone no ecrã inicial'}</small></span>${isInstalled()?'':ic('chev')}</button>
     <button class="srow" data-act="update"><span class="si">${ic('refresh')}</span><span class="st"><b>Atualizar app</b><small>Versão ${APP_VERSION} · procurar atualizações</small></span>${ic('chev')}</button>
@@ -1075,6 +1076,7 @@ $('#sset').addEventListener('click',async e=>{
   if(d.card){CFG.card=d.card;saveCfg();applyTheme();renderSettings();return;}
   if(d.act==='fs')toggleFS();
   else if(d.act==='update')checkUpdate();
+  else if(d.act==='dupes')removeDupes();
   else if(d.act==='shareapp')shareApp();
   else if(d.act==='bkexp')backupExport();
   else if(d.act==='bkimp')$('#bkfile').click();
@@ -1395,19 +1397,23 @@ async function load(){
 
 /* ---------- Importar ---------- */
 const isAudio=f=>(f.type||'').startsWith('audio/')||/\.(mp3|m4a|aac|flac|wav|ogg|oga|opus|wma|amr)$/i.test(f.name||'');
+const dupKey=(name,size)=>(name||'').toLowerCase()+'|'+size;
 async function importFiles(list){
   let n=0,skip=0,moved=0;const total=list.length,folders=new Set();
+  /* mapa das músicas que já existem (nome + tamanho), actualizado durante a importação */
+  const have=new Map();
+  for(const x of tracks){if(x.fname&&x.blob)have.set(dupKey(x.fname,x.blob.size),x);}
   for(const {f,folder} of list){
-    /* já existe? (também reconhece músicas importadas antes, só com o nome da última pasta, e arruma-as no caminho completo) */
-    const dup=folder&&tracks.find(x=>x.fname===f.name&&x.blob.size===f.size&&(x.folder===folder||(folder.includes('/')&&x.folder===folder.split('/').pop())));
+    const key=dupKey(f.name,f.size),dup=have.get(key);
     if(dup){
-      if(dup.folder!==folder){try{dup.folder=folder;await tx('tracks','readwrite',s=>s.put(dup));moved++;}catch(e){}}
+      /* já existe: não duplica; só arruma no caminho completo se vier de uma pasta */
+      if(folder&&dup.folder!==folder&&(!dup.folder||folder.startsWith(dup.folder+'/')||folder.split('/').pop()===dup.folder||folder.includes('/'))){try{dup.folder=folder;await tx('tracks','readwrite',s=>s.put(dup));moved++;}catch(e){}}
       skip++;continue;
     }
     try{
       const nm=parseName(f.name),tg=await readTags(f);
       const t={id:crypto.randomUUID(),title:tg.title||nm.title,artist:tg.artist||nm.artist,blob:f,added:Date.now()+n,fav:false,cover:tg.cover,coverTried:true,metaTried:true,genre:tg.genre||'',genreTried:true,folder:folder||'',fname:f.name};
-      await tx('tracks','readwrite',s=>s.put(t));n++;if(folder)folders.add(folder);
+      await tx('tracks','readwrite',s=>s.put(t));have.set(key,t);n++;if(folder)folders.add(folder);
     }catch(e){skip++;}
     if(total>6&&(n+skip)%4===0)toast('A importar… '+(n+skip)+'/'+total,1500);
   }
@@ -1797,6 +1803,36 @@ async function delTracks(ids){
   sel=null;selUI();
   if(playing&&qi>=0)loadCur();
   render();
+}
+
+/* ---------- Remover músicas repetidas ---------- */
+async function removeDupes(){
+  const groups=new Map();
+  for(const t of tracks){
+    const k=(t.fname&&t.blob)?dupKey(t.fname,t.blob.size):null;if(!k)continue;
+    (groups.get(k)||groups.set(k,[]).get(k)).push(t);
+  }
+  const inList=id=>lists.some(l=>l.ids.includes(id)),c=cur();
+  const score=t=>(c&&c.id===t.id?1000:0)+(t.fav?100:0)+(inList(t.id)?50:0)+(t.folder?(t.folder.split('/').length*5):0)+(t.cover?3:0);
+  const rm=[],map=new Map();
+  for(const g of groups.values()){
+    if(g.length<2)continue;
+    g.sort((a,b)=>score(b)-score(a)||a.added-b.added);
+    const keep=g[0];
+    for(const o of g.slice(1)){
+      if(o.fav&&!keep.fav){keep.fav=true;await tx('tracks','readwrite',s=>s.put(keep));}
+      rm.push(o.id);map.set(o.id,keep.id);
+    }
+  }
+  if(!rm.length){toast('Não há músicas repetidas',2800);return;}
+  if(!await askOk('Remover repetidas','Encontrei '+rm.length+(rm.length>1?' músicas repetidas':' música repetida')+' (mesmo ficheiro).\nFica uma cópia de cada, com favoritos e listas mantidos.','Remover',true))return;
+  for(const l of lists){
+    let ch=false;const out=[];
+    for(const id of l.ids){const r=map.get(id)||id;if(r!==id)ch=true;if(!out.includes(r))out.push(r);else ch=true;}
+    if(ch){l.ids=out;await tx('lists','readwrite',s=>s.put(l));}
+  }
+  await delTracks(rm);
+  toast(rm.length+(rm.length>1?' repetidas removidas':' repetida removida'),3200);
 }
 async function delTrack(t){
   if(!await askOk('Apagar música','Apagar "'+t.title+'" da biblioteca?\nEsta ação não pode ser desfeita.','Apagar',true))return;
