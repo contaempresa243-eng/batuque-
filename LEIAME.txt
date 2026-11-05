@@ -1,0 +1,11 @@
+BATUQUE v1.26.0 · APK
+
+No repositório do Batuque:
+  1. index.html                                   (substitui)
+  2. package.json                                 (substitui)
+  3. .github/workflows/apk.yml                    (substitui, cola o texto completo)
+  4. android-extra/MainActivity.java              (substitui)
+  5. android-extra/MediaService.java              (NOVO)
+  6. android-extra/BatuqueMediaPlugin.java        (NOVO)
+  7. android-extra/FolderPickerPlugin.java        (fica como está)
+Depois: Actions > Gerar APK do Batuque > Run workflow.

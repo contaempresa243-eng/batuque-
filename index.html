@@ -519,6 +519,10 @@ button.srow:active{background:var(--card2)}
 .fcard{background:var(--card);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:10px}
 .fcard .cov{width:100%;height:auto;aspect-ratio:16/10;border-radius:12px;background:linear-gradient(135deg,var(--red),color-mix(in srgb,var(--red) 45%,#000))}
 .fcard .meta{flex:none}
+.hasbg .fcard,.hasbg .lcard{background:rgba(24,24,24,.34);box-shadow:none;border:0}
+:root[data-theme=light].hasbg .fcard,:root[data-theme=light].hasbg .lcard{background:rgba(255,255,255,.46)}
+.hasbg .fcard .t,.hasbg .lcard .t{text-shadow:0 1px 4px rgba(0,0,0,.55)}
+.hasbg .fcard .a,.hasbg .lcard .a{text-shadow:0 1px 3px rgba(0,0,0,.5)}
 .lcard[data-folder],.fcard[data-folder]{position:relative}
 .fbadge{position:absolute;display:flex;align-items:flex-end;gap:2px;padding:5px 4px;color:var(--yel);text-shadow:0 1px 3px #000c;font-size:12px;font-weight:800;line-height:1;pointer-events:none}.fcard .fbadge{color:#fff}
 .lcard .fbadge{right:12px;top:50%;margin-top:-13px}
@@ -666,29 +670,69 @@ header{position:relative}
 <audio id="audio" preload="metadata"></audio>
 
 <script>
-/* APK (Capacitor): o WebView do Android não mostra o cartão de música; liga o navigator.mediaSession ao plugin nativo */
+/* APK (Capacitor): o WebView do Android não tem cartão de música nem controlos na notificação.
+   Liga o navigator.mediaSession ao plugin nativo BatuqueMedia (notificação com capa, ⏮ ▶/⏸ ⏭, ecrã de bloqueio). */
 (function(){
   const C=window.Capacitor;
   if(!C||!C.isNativePlatform||!C.isNativePlatform())return;
   window.IS_APK=true;
-  let MS=null;try{MS=(C.Plugins&&C.Plugins.MediaSession)||C.registerPlugin('MediaSession');}catch(e){}
-  if(!MS)return;
+  let BM=null;try{BM=(C.Plugins&&C.Plugins.BatuqueMedia)||C.registerPlugin('BatuqueMedia');}catch(e){}
+  if(!BM)return;
+  window.BM=BM;
   class MM{constructor(i){i=i||{};this.title=i.title||'';this.artist=i.artist||'';this.album=i.album||'';this.artwork=i.artwork||[];}}
   window.MediaMetadata=MM;
-  let meta=null,state='none';
+  const handlers={};
+  let meta=null,state='none',pos={position:0,duration:0},lp={pos:0,t:0,dur:0},cover='',coverSrc='',coverDirty=false,tmr=0;
+  try{BM.addListener('action',e=>{const h=handlers[e&&e.action];if(h){try{h({action:e.action,seekTime:e.seekTime});}catch(x){}}});}catch(e){}
+  const push=()=>{
+    clearTimeout(tmr);
+    tmr=setTimeout(()=>{
+      try{
+        if(state==='none'){BM.stop();return;}
+        const o={title:meta?meta.title:'',artist:meta?meta.artist:'',album:meta?meta.album:'',playing:state==='playing',position:pos.position||0,duration:pos.duration||0};
+        if(coverDirty){o.cover=cover;coverDirty=false;}
+        BM.update(o);
+      }catch(e){}
+    },120);
+  };
+  function toCover(src){
+    const img=new Image();
+    img.onload=()=>{
+      if(src!==coverSrc)return;
+      try{
+        const r=Math.min(1,400/Math.max(img.naturalWidth,img.naturalHeight));
+        const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.naturalWidth*r));c.height=Math.max(1,Math.round(img.naturalHeight*r));
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        cover=(c.toDataURL('image/jpeg',.85).split(',')[1])||'';
+      }catch(e){cover='';}
+      coverDirty=true;push();
+    };
+    img.onerror=()=>{};
+    img.src=src;
+  }
   const ms={
     get metadata(){return meta;},
     set metadata(m){
       meta=m;
-      try{
-        const art=((m&&m.artwork)||[]).filter(a=>/^https?:/i.test(a.src||''));
-        MS.setMetadata({title:m?m.title:'',artist:m?m.artist:'',album:m?m.album:'',artwork:art}).catch(()=>{});
-      }catch(e){}
+      const a=((m&&m.artwork)||[]).find(x=>x&&x.src);
+      const src=a?a.src:'';
+      if(src!==coverSrc){
+        coverSrc=src;
+        if(!src){cover='';coverDirty=true;}else toCover(src);
+      }
+      push();
     },
     get playbackState(){return state;},
-    set playbackState(v){state=v;try{MS.setPlaybackState({playbackState:v}).catch(()=>{});}catch(e){}},
-    setActionHandler(action,h){try{MS.setActionHandler({action},h||(()=>{})).catch(()=>{});}catch(e){}},
-    setPositionState(o){try{if(o)MS.setPositionState(o).catch(()=>{});}catch(e){}}
+    set playbackState(v){state=v;push();},
+    setActionHandler(action,h){handlers[action]=h;},
+    setPositionState(o){
+      if(!o)return;
+      const now=Date.now(),exp=lp.pos+(state==='playing'?(now-lp.t)/1000:0);
+      const jump=Math.abs((o.position||0)-exp)>1.5||o.duration!==lp.dur;
+      pos={position:o.position||0,duration:o.duration||0};
+      lp={pos:o.position||0,t:now,dur:o.duration};
+      if(jump)push();
+    }
   };
   try{Object.defineProperty(navigator,'mediaSession',{value:ms,configurable:true});}catch(e){}
 })();
@@ -779,7 +823,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.25.0';
+const APP_VERSION='1.26.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -856,7 +900,9 @@ const fsSet=v=>{try{localStorage.setItem(FS_KEY,v?'1':'0');}catch(e){}};
 const isApp=()=>{try{return matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;}catch(e){return false;}};
 const fsNative=()=>{try{return matchMedia('(display-mode: fullscreen)').matches;}catch(e){return false;}};
 const fsReq=()=>{const el=document.documentElement,f=el.requestFullscreen||el.webkitRequestFullscreen;return f?f.call(el):Promise.reject();};
+const apkFs=()=>{try{if(window.BM)window.BM.setFullscreen({on:fsWant()});}catch(e){}};
 async function toggleFS(){
+  if(window.IS_APK){fsSet(!fsWant());apkFs();if($('#settings').classList.contains('show')&&sv==='main')renderSettings();return;}
   if(fsNative()){toast('Na app instalada o ecrã cheio está sempre ligado');return;}
   try{
     if(fsWant()){
@@ -874,6 +920,7 @@ async function toggleFS(){
    ao abrir a app e sempre que voltas a ela (o Chrome mostra o seu aviso de ecrã cheio nessa altura) */
 let fsArmed=false;
 function fsRestore(){
+  if(window.IS_APK){apkFs();return;}
   if(fsNative())return;
   if(!fsWant()||fsOn()||fsArmed)return;
   fsArmed=true;
@@ -1080,7 +1127,7 @@ function renderSettings(){
     h+=`<div class="sgroup">Ecrã</div>
     <button class="srow" data-go="theme"><span class="si">${ic('palette')}</span><span class="st"><b>Tema</b><small>Paleta de cores, galeria e estilo do cartão</small></span>${ic('chev')}</button>
     <div class="srow"><span class="si">${ic('contrast')}</span><span class="st"><b>Aparência</b><small>Escuro, claro ou predefinido (segue o sistema)</small></span><div class="seg">${modes.map(([k,n])=>`<button data-mode="${k}" class="${CFG.mode===k?'on':''}">${n}</button>`).join('')}</div></div>
-    <button class="srow" data-act="fs"><span class="si">${ic('fullscreen')}</span><span class="st"><b>Modo ecrã cheio</b><small>${fsNative()?'Sempre ligado na app instalada':'Ligado por defeito · esconde as barras e entra no primeiro toque'}</small></span><span class="sw${(fsNative()||fsWant())?' on':''}"></span></button>
+    <button class="srow" data-act="fs"><span class="si">${ic('fullscreen')}</span><span class="st"><b>Modo ecrã cheio</b><small>${window.IS_APK?'Esconde a barra de estado e a de navegação · desliza do bordo para as ver':(fsNative()?'Sempre ligado na app instalada':'Ligado por defeito · esconde as barras e entra no primeiro toque')}</small></span><span class="sw${(fsNative()||fsWant())?' on':''}"></span></button>
     <div class="sgroup">Dados</div>
     <button class="srow" data-act="bkexp"><span class="si">${ic('down')}</span><span class="st"><b>Guardar cópia de segurança</b><small>Listas, favoritos, estatísticas e definições num ficheiro</small></span>${ic('chev')}</button>
     <button class="srow" data-act="bkimp"><span class="si">${ic('refresh')}</span><span class="st"><b>Restaurar cópia de segurança</b><small>Escolhe um ficheiro .batuque guardado antes</small></span>${ic('chev')}</button>
@@ -2004,7 +2051,7 @@ async function artFor(t){
 }
 function msHandlers(){
   if(!('mediaSession'in navigator))return;
-  const h={play:()=>audio.play(),pause:()=>audio.pause(),stop:()=>audio.pause(),
+  const h={play:()=>{const p=audio.play();if(p&&p.catch)p.catch(()=>{});},pause:()=>audio.pause(),stop:()=>audio.pause(),
     previoustrack:()=>prev(true),nexttrack:()=>next(false),
     seekto:e=>{if(e&&isFinite(e.seekTime)){audio.currentTime=e.seekTime;syncPos(true);}},
     seekbackward:null,seekforward:null};
