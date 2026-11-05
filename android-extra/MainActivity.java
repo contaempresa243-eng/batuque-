@@ -2,6 +2,8 @@ package com.aldair.batuque;
 
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
 
@@ -11,6 +13,10 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(FolderPickerPlugin.class);
         registerPlugin(BatuqueMediaPlugin.class);
         super.onCreate(savedInstanceState);
+        try {
+            // fundo escuro desde o início (sem faixas brancas)
+            getWindow().setBackgroundDrawable(new ColorDrawable(Color.parseColor("#0d0d0d")));
+        } catch (Exception e) { }
         try {
             // permite que a música volte a tocar a partir da notificação, sem um toque novo no ecrã
             getBridge().getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false);
