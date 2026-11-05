@@ -1,4 +1,4 @@
-M: Gerar APK do Batuque
+name: Gerar APK do Batuque
 
 on:
   workflow_dispatch:
