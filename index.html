@@ -17,7 +17,7 @@
 html,body{height:100%;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overscroll-behavior:none}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 svg{width:24px;height:24px;fill:currentColor;display:block}
-#app{display:flex;flex-direction:column;height:100dvh;max-width:640px;margin:auto;position:relative;z-index:1}
+#app{display:flex;flex-direction:column;height:100%;height:100vh;height:100dvh;max-width:640px;margin:auto;position:relative;z-index:1}
 header{padding:calc(14px + env(safe-area-inset-top)) 16px 8px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 h1{font-size:24px;letter-spacing:-.5px}
@@ -156,7 +156,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:0;border-radiu
 .lbtn.pill svg{width:20px;height:20px;color:var(--yel)}
 #linfo{position:fixed;inset:0;z-index:40;background:#000a;display:none;align-items:flex-end;justify-content:center}
 #linfo.show{display:flex;animation:dlgf .16s ease-out}
-#linfo .ib2{max-width:640px;width:100%;max-height:82dvh;background:var(--card);color:var(--tx);border-radius:22px 22px 0 0;display:flex;flex-direction:column;overflow:hidden;position:relative;animation:lup .2s ease-out}
+#linfo .ib2{max-width:640px;width:100%;max-height:82vh;max-height:82dvh;background:var(--card);color:var(--tx);border-radius:22px 22px 0 0;display:flex;flex-direction:column;overflow:hidden;position:relative;animation:lup .2s ease-out}
 #linfo .ib2::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,var(--red) 50%,var(--yel) 50%)}
 #linfo .ihead{display:flex;align-items:center;gap:10px;padding:18px 14px 8px 18px}
 #linfo .ihead h2{flex:1;font-size:18px;margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -207,7 +207,7 @@ a.srow{color:inherit;text-decoration:none}
 .cefit,.cebtn{display:flex;gap:10px}
 .cefit button,.cebtn button{flex:1;padding:11px 8px;border-radius:12px;background:var(--card2);color:var(--tx);font-size:14px}
 .cebtn button.ok{background:var(--yel);color:var(--onp);font-weight:700}
-#sheet .box{background:var(--card);width:100%;max-width:640px;border-radius:20px 20px 0 0;padding:12px 8px calc(12px + env(safe-area-inset-bottom));max-height:52dvh;overflow:auto}
+#sheet .box{background:var(--card);width:100%;max-width:640px;border-radius:20px 20px 0 0;padding:12px 8px calc(12px + env(safe-area-inset-bottom));max-height:52vh;max-height:52dvh;overflow:auto}
 #sheet h3{padding:2px 14px 6px;font-size:14px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #sheet button{display:block;width:100%;text-align:left;padding:10px 14px;font-size:15px;border-radius:10px}
 #sheet button:active{background:var(--card2)}
@@ -470,7 +470,7 @@ button.srow:active{background:var(--card2)}
 .gal .gb .btn{flex:1;margin:0;padding:11px;font-size:14px}
 #sheet textarea{display:block;width:calc(100% - 28px);margin:6px 14px;min-height:110px;background:var(--card2);color:var(--tx);border:1px solid var(--bd);border-radius:12px;padding:12px;font:inherit;font-size:15px;resize:vertical;outline:none}
 #sheet textarea:focus{border-color:var(--yel)}
-#sheet .box.qbox{max-height:46dvh}
+#sheet .box.qbox{max-height:46vh;max-height:46dvh}
 .st-sec{margin:20px 2px 8px;font-size:12px;font-weight:800;letter-spacing:1.4px;color:var(--yel);text-transform:uppercase}
 .st-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .st-card{background:var(--card);border-radius:var(--r);padding:14px;min-width:0}
@@ -571,7 +571,7 @@ header{position:relative}
   #linfo .ib2,#sheet .box{max-width:none}
   #full.show{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);grid-auto-rows:min-content;align-content:center;column-gap:22px;padding:calc(8px + env(safe-area-inset-top)) 24px calc(8px + env(safe-area-inset-bottom))}
   #full.show>.fhead,#full.show>#vol,#full.show>#viz,#full.show>.tools,#full.show>#seek,#full.show>.times,#full.show>.ctl{grid-column:2}
-  #full.show>#bigcov{grid-column:1;grid-row:1/span 7;align-self:center;justify-self:center;width:min(100%,calc(100dvh - 40px));margin:0}
+  #full.show>#bigcov{grid-column:1;grid-row:1/span 7;align-self:center;justify-self:center;width:min(100%,calc(100vh - 40px));width:min(100%,calc(100dvh - 40px));margin:0}
   #full.show #viz{height:34px}
 }
 @media (orientation:landscape) and (min-height:561px){
@@ -666,6 +666,34 @@ header{position:relative}
 <audio id="audio" preload="metadata"></audio>
 
 <script>
+/* APK (Capacitor): o WebView do Android não mostra o cartão de música; liga o navigator.mediaSession ao plugin nativo */
+(function(){
+  const C=window.Capacitor;
+  if(!C||!C.isNativePlatform||!C.isNativePlatform())return;
+  window.IS_APK=true;
+  let MS=null;try{MS=(C.Plugins&&C.Plugins.MediaSession)||C.registerPlugin('MediaSession');}catch(e){}
+  if(!MS)return;
+  class MM{constructor(i){i=i||{};this.title=i.title||'';this.artist=i.artist||'';this.album=i.album||'';this.artwork=i.artwork||[];}}
+  window.MediaMetadata=MM;
+  let meta=null,state='none';
+  const ms={
+    get metadata(){return meta;},
+    set metadata(m){
+      meta=m;
+      try{
+        const art=((m&&m.artwork)||[]).filter(a=>/^https?:/i.test(a.src||''));
+        MS.setMetadata({title:m?m.title:'',artist:m?m.artist:'',album:m?m.album:'',artwork:art}).catch(()=>{});
+      }catch(e){}
+    },
+    get playbackState(){return state;},
+    set playbackState(v){state=v;try{MS.setPlaybackState({playbackState:v}).catch(()=>{});}catch(e){}},
+    setActionHandler(action,h){try{MS.setActionHandler({action},h||(()=>{})).catch(()=>{});}catch(e){}},
+    setPositionState(o){try{if(o)MS.setPositionState(o).catch(()=>{});}catch(e){}}
+  };
+  try{Object.defineProperty(navigator,'mediaSession',{value:ms,configurable:true});}catch(e){}
+})();
+</script>
+<script>
 'use strict';
 const $=s=>document.querySelector(s);
 const IC={
@@ -751,7 +779,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.24.1';
+const APP_VERSION='1.25.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -974,6 +1002,7 @@ async function installApp(){
 
 /* Atualizar app */
 async function checkUpdate(){
+  if(window.IS_APK){toast('Esta é a app instalada (APK, v'+APP_VERSION+'). Para atualizar, instala o APK novo.',4200);return;}
   if(!navigator.onLine){toast('Sem ligação à internet');return;}
   toast('A procurar atualizações…',2500);
   try{
@@ -1403,14 +1432,16 @@ async function importFiles(list){
   /* mapa das músicas que já existem (nome + tamanho), actualizado durante a importação */
   const have=new Map();
   for(const x of tracks){if(x.fname&&x.blob)have.set(dupKey(x.fname,x.blob.size),x);}
-  for(const {f,folder} of list){
-    const key=dupKey(f.name,f.size),dup=have.get(key);
+  for(const it of list){
+    const folder=it.folder,fname=it.f?it.f.name:it.name,fsize=it.f?it.f.size:it.size;
+    const key=dupKey(fname,fsize),dup=have.get(key);
     if(dup){
       /* já existe: não duplica; só arruma no caminho completo se vier de uma pasta */
       if(folder&&dup.folder!==folder&&(!dup.folder||folder.startsWith(dup.folder+'/')||folder.split('/').pop()===dup.folder||folder.includes('/'))){try{dup.folder=folder;await tx('tracks','readwrite',s=>s.put(dup));moved++;}catch(e){}}
       skip++;continue;
     }
     try{
+      const f=it.f||await it.get();
       const nm=parseName(f.name),tg=await readTags(f);
       const t={id:crypto.randomUUID(),title:tg.title||nm.title,artist:tg.artist||nm.artist,blob:f,added:Date.now()+n,fav:false,cover:tg.cover,coverTried:true,metaTried:true,genre:tg.genre||'',genreTried:true,folder:folder||'',fname:f.name};
       await tx('tracks','readwrite',s=>s.put(t));have.set(key,t);n++;if(folder)folders.add(folder);
@@ -1438,13 +1469,33 @@ async function walkDir(h,path,out){
     else await walkDir(e,path+'/'+e.name,out);
   }
 }
+let _fp;const FP=()=>{if(_fp===undefined){try{const C=window.Capacitor;_fp=(C.Plugins&&C.Plugins.FolderPicker)||C.registerPlugin('FolderPicker');}catch(e){_fp=null;}}return _fp;};
 async function pickFolder(){
   /* o Chrome pede permissão para ler a pasta; explicamos antes, só da primeira vez */
   let seen=false;try{seen=localStorage.getItem('batuque_dirhint')==='1';}catch(e){}
   if(!seen){
-    const ok=await dlg({title:'Adicionar uma pasta',msg:'Escolhe a pasta onde tens as músicas.\nA seguir, o Chrome vai perguntar se o Batuque pode ver os ficheiros dessa pasta: toca em «Permitir».\nAs músicas são copiadas para dentro da app e ficam disponíveis sem internet.',ok:'Escolher pasta',cancel:'Cancelar',icon:'folder'});
+    const ok=await dlg({title:'Adicionar uma pasta',msg:'Escolhe a pasta onde tens as músicas.\nA seguir, o Android ou o Chrome vai perguntar se o Batuque pode ver essa pasta: toca em «Permitir».\nAs músicas são copiadas para dentro da app e ficam disponíveis sem internet.',ok:'Escolher pasta',cancel:'Cancelar',icon:'folder'});
     if(!ok)return;
     try{localStorage.setItem('batuque_dirhint','1');}catch(e){}
+  }
+  if(window.IS_APK&&FP()){
+    try{
+      const r=await FP().pick();
+      toast('A ler a pasta…',2000);
+      const MIME={mp3:'audio/mpeg',m4a:'audio/mp4',aac:'audio/aac',flac:'audio/flac',wav:'audio/wav',ogg:'audio/ogg',oga:'audio/ogg',opus:'audio/opus',wma:'audio/x-ms-wma',amr:'audio/amr'};
+      const out=(r.files||[]).map(x=>({name:x.name,size:x.size,folder:x.folder,get:async()=>{
+        const c=await FP().copy({uri:x.uri});
+        try{
+          const resp=await fetch(window.Capacitor.convertFileSrc('file://'+c.path));
+          const b=await resp.blob();
+          const ext=(x.name.split('.').pop()||'').toLowerCase();
+          return new File([b],x.name,{type:MIME[ext]||'audio/mpeg'});
+        }finally{FP().clean({path:c.path}).catch(()=>{});}
+      }}));
+      if(!out.length){toast('Nenhuma música encontrada nessa pasta');return;}
+      await importFiles(out);
+    }catch(e){if(!(e&&/cancel/i.test(e.message||e.errorMessage||'')))toast('Não foi possível abrir a pasta',3000);}
+    return;
   }
   if(window.showDirectoryPicker){
     try{
@@ -3854,7 +3905,7 @@ function setVol(v,save){
 /* ---------- PWA / offline ---------- */
 (function(){
   if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
-  if(!('serviceWorker' in navigator)||!/^https?:$/.test(location.protocol))return;
+  if(window.IS_APK||!('serviceWorker' in navigator)||!/^https?:$/.test(location.protocol))return;
   const first=!navigator.serviceWorker.controller;
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('sw.js').then(reg=>{
