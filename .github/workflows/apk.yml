@@ -30,11 +30,22 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Permissões, ecrã e ícone
+      - name: Instalar ImageMagick
         run: |
-          sudo apt-get update -qq; sudo apt-get install -y imagemagick; M=android/app/src/main/AndroidManifest.xml
+          sudo apt-get update -qq
+          sudo apt-get install -y imagemagick
+
+      - name: Plugin nativo, permissões e ícone
+        run: |
+          cp android-extra/*.java android/app/src/main/java/com/aldair/batuque/
+          cat >> android/app/build.gradle <<GRADLE
+
+          dependencies {
+              implementation "androidx.documentfile:documentfile:1.0.1"
+          }
+          GRADLE
+          M=android/app/src/main/AndroidManifest.xml
           sed -i 's#<application#<uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n    <application#' $M
-          
           if [ -f icon-512.png ]; then
             for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
               dir=android/app/src/main/res/mipmap-${d%%:*}; px=${d##*:}
