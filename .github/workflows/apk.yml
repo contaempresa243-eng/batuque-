@@ -1,4 +1,4 @@
-name: Gerar APK do Batuque
+M: Gerar APK do Batuque
 
 on:
   workflow_dispatch:
@@ -32,7 +32,7 @@ jobs:
 
       - name: Permissões, ecrã e ícone
         run: |
-          M=android/app/src/main/AndroidManifest.xml
+          sudo apt-get update -qq; sudo apt-get install -y imagemagick; M=android/app/src/main/AndroidManifest.xml
           sed -i 's#<application#<uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n    <application#' $M
           sed -i 's#android:name=".MainActivity"#android:name=".MainActivity" android:launchMode="singleTask"#' $M
           if [ -f icon-512.png ]; then
