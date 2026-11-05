@@ -1,6 +1,0 @@
-{
-  "appId": "com.aldair.batuque",
-  "appName": "Batuque",
-  "webDir": "www",
-  "android": { "allowMixedContent": false }
-}
