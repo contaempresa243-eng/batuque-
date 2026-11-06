@@ -521,8 +521,8 @@ button.srow:active{background:var(--card2)}
 .fcard .meta{flex:none}
 .lib-list{max-height:44vh;overflow:auto;margin:6px 0 4px;border-top:1px solid var(--bd)}
 .lib-row{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--bd);font-size:14px}
-.lib-row input{flex:none;width:20px;height:20px;accent-color:var(--yel)}
-.lib-row span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+#dlg .lib-row input{display:inline-block;flex:none;width:22px;height:22px;margin:0;padding:0;border-radius:6px;accent-color:var(--yel)}
+.lib-row span{color:var(--tx);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .lib-row small{flex:none;color:var(--mut);font-size:12px}
 .lib-all{display:block;width:100%;margin:2px 0 0;padding:8px;border:0;background:none;color:var(--yel);font-weight:700;font-size:13px;text-align:left}
 .apkfs #app{padding-top:26px}
@@ -831,7 +831,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.29.0';
+const APP_VERSION='1.29.1';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -1757,7 +1757,7 @@ function render(){
     const v=b.dataset.v;b.classList.toggle('on',v===view.t||(v==='lists'&&(view.t==='list'||view.t==='fav'))||(v==='lib'&&(view.t==='folders'||view.t==='folder')));
   });
   const noTools=view.t==='lists'||view.t==='stats';
-  $('#fab').style.display=noTools?'none':'grid';
+  $('#fab').style.display=(noTools||window.IS_APK)?'none':'grid';
   $('.tact').style.display=noTools?'none':'flex';
   const inF=view.t==='folders'||view.t==='folder';
   $('#sortb').style.display=(view.t==='folders')?'none':'';
@@ -1784,7 +1784,7 @@ function render(){
     if(loose.length)arr.push(['',{n:loose.length,sz:loose.reduce((s,t)=>s+t.blob.size,0)}]);
     const arrF=arr.filter(([k])=>!q||folderName(k).toLowerCase().includes(q));
     h+=`<div class="head2"><button class="ib" id="fsback" aria-label="Voltar">${ic('back')}</button><h2>Pastas de música</h2></div>`;
-    if(!arrF.length)h+=`<div class="empty">${ic('folder')}${search?'Nenhuma pasta encontrada.':'Ainda não tens pastas.<br>Toca no <b style="color:var(--yel)">+</b> e escolhe <b>Adicionar pasta</b>.'}</div>`;
+    if(!arrF.length)h+=`<div class="empty">${ic('folder')}${search?'Nenhuma pasta encontrada.':(window.IS_APK?'Ainda não tens pastas.<br>Vai a <b>Definições</b> e toca em <b>Atualizar biblioteca</b>.':'Ainda não tens pastas.<br>Toca no <b style="color:var(--yel)">+</b> e escolhe <b>Adicionar pasta</b>.')}</div>`;
     if(arrF.length)h+=folderCards(arrF);
   }else{
     if(view.t==='folder'){
@@ -1806,7 +1806,7 @@ function render(){
     const arr=visible();
     if(!arr.length){
       if(subsN){}
-      else if(view.t==='lib'&&!tracks.length)h+=`<div class="empty">${ic('music')}A tua biblioteca está vazia.<br>Toca no <b style="color:var(--yel)">+</b> para adicionar músicas ou uma pasta do telemóvel.${drumsSVG()}</div>`;
+      else if(view.t==='lib'&&!tracks.length)h+=`<div class="empty">${ic('music')}A tua biblioteca está vazia.<br>${window.IS_APK?'Vai a <b>Definições</b> e toca em <b>Atualizar biblioteca</b> para trazer as músicas do telefone.':'Toca no <b style="color:var(--yel)">+</b> para adicionar músicas ou uma pasta do telemóvel.'}${drumsSVG()}</div>`;
       else h+=`<div class="empty">${ic(view.t==='fav'?'heart':'music')}${search?'Nada encontrado.':view.t==='fav'?'Toca no coração para guardar favoritos.':'Esta lista está vazia.'}</div>`;
     }else{
       if(subsN)h+=`<div class="a" style="padding:14px 2px 8px;font-weight:600">Músicas · ${arr.length}</div>`;
