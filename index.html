@@ -519,6 +519,12 @@ button.srow:active{background:var(--card2)}
 .fcard{background:var(--card);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:10px}
 .fcard .cov{width:100%;height:auto;aspect-ratio:16/10;border-radius:12px;background:linear-gradient(135deg,var(--red),color-mix(in srgb,var(--red) 45%,#000))}
 .fcard .meta{flex:none}
+.lib-list{max-height:44vh;overflow:auto;margin:6px 0 4px;border-top:1px solid var(--bd)}
+.lib-row{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--bd);font-size:14px}
+.lib-row input{flex:none;width:20px;height:20px;accent-color:var(--yel)}
+.lib-row span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.lib-row small{flex:none;color:var(--mut);font-size:12px}
+.lib-all{display:block;width:100%;margin:2px 0 0;padding:8px;border:0;background:none;color:var(--yel);font-weight:700;font-size:13px;text-align:left}
 .apkfs #app{padding-top:26px}
 .apkfs #full{padding-top:calc(38px + env(safe-area-inset-top))}
 .hasbg .fcard,.hasbg .lcard{background:rgba(24,24,24,.34);box-shadow:none;border:0}
@@ -825,7 +831,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.28.0';
+const APP_VERSION='1.29.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -1013,6 +1019,7 @@ function dlg(o){
     const h=document.createElement('h2');h.textContent=o.title||'Batuque';
     head.append(ico,h);box.append(head);
     if(o.msg){const p=document.createElement('p');p.textContent=o.msg;box.append(p);}
+    if(o.node)box.append(o.node);
     let inp=null;
     if(o.input){inp=document.createElement('input');inp.type='text';inp.value=o.value||'';inp.placeholder=o.placeholder||'';inp.autocomplete='off';inp.maxLength=120;box.append(inp);}
     const bt=document.createElement('div');bt.className='dbtn';
@@ -1132,6 +1139,9 @@ function renderSettings(){
     <div class="srow"><span class="si">${ic('contrast')}</span><span class="st"><b>Aparência</b><small>Escuro, claro ou predefinido (segue o sistema)</small></span><div class="seg">${modes.map(([k,n])=>`<button data-mode="${k}" class="${CFG.mode===k?'on':''}">${n}</button>`).join('')}</div></div>
     <button class="srow" data-act="fs"><span class="si">${ic('fullscreen')}</span><span class="st"><b>Modo ecrã cheio</b><small>${window.IS_APK?'Esconde a barra de estado e a de navegação · desliza do bordo para as ver':(fsNative()?'Sempre ligado na app instalada':'Ligado por defeito · esconde as barras e entra no primeiro toque')}</small></span><span class="sw${(fsNative()||fsWant())?' on':''}"></span></button>
     <div class="sgroup">Dados</div>
+    ${window.IS_APK?`<button class="srow" data-act="libup"><span class="si">${ic('refresh')}</span><span class="st"><b>Atualizar biblioteca</b><small>Procura músicas novas no telefone e importa-as</small></span>${ic('chev')}</button>
+    <button class="srow" data-act="libpick"><span class="si">${ic('folder')}</span><span class="st"><b>Pastas de música do telefone</b><small>Escolhe que pastas o Batuque usa</small></span>${ic('chev')}</button>
+    <button class="srow" data-act="libauto"><span class="si">${ic('refresh')}</span><span class="st"><b>Procurar músicas novas ao abrir</b><small>Pergunta antes de importar</small></span><span class="sw${libCfg().auto!==false?' on':''}"></span></button>`:''}
     <button class="srow" data-act="bkexp"><span class="si">${ic('down')}</span><span class="st"><b>Guardar cópia de segurança</b><small>Listas, favoritos, estatísticas e definições num ficheiro</small></span>${ic('chev')}</button>
     <button class="srow" data-act="bkimp"><span class="si">${ic('refresh')}</span><span class="st"><b>Restaurar cópia de segurança</b><small>Escolhe um ficheiro .batuque guardado antes</small></span>${ic('chev')}</button>
     <button class="srow" data-act="dupes"><span class="si">${ic('trash')}</span><span class="st"><b>Remover músicas repetidas</b><small>Fica uma cópia de cada ficheiro igual</small></span>${ic('chev')}</button>
@@ -1157,6 +1167,9 @@ $('#sset').addEventListener('click',async e=>{
   else if(d.act==='update')checkUpdate();
   else if(d.act==='dupes')removeDupes();
   else if(d.act==='shareapp')shareApp();
+  else if(d.act==='libup'){closeSettings&&0;libUpdate(false);}
+  else if(d.act==='libpick')libPickFolders();
+  else if(d.act==='libauto'){const c=libCfg();c.auto=c.auto===false;libSave(c);renderSettings();}
   else if(d.act==='bkexp')backupExport();
   else if(d.act==='bkimp')$('#bkfile').click();
   else if(d.act==='install')installApp();
@@ -1493,7 +1506,7 @@ async function importFiles(list){
     try{
       const f=it.f||await it.get();
       const nm=parseName(f.name),tg=await readTags(f);
-      const t={id:crypto.randomUUID(),title:tg.title||nm.title,artist:tg.artist||nm.artist,blob:f,added:Date.now()+n,fav:false,cover:tg.cover,coverTried:true,metaTried:true,genre:tg.genre||'',genreTried:true,folder:folder||'',fname:f.name};
+      const t={id:crypto.randomUUID(),title:tg.title||nm.title,artist:tg.artist||nm.artist,blob:f,added:Date.now()+n,fav:false,cover:tg.cover,coverTried:true,metaTried:true,genre:tg.genre||'',genreTried:true,folder:folder||'',fname:f.name,auto:!!it.auto,psize:it.auto?it.size:undefined};
       await tx('tracks','readwrite',s=>s.put(t));have.set(key,t);n++;if(folder)folders.add(folder);
     }catch(e){skip++;}
     if(total>6&&(n+skip)%4===0)toast('A importar… '+(n+skip)+'/'+total,1500);
@@ -1532,16 +1545,7 @@ async function pickFolder(){
     try{
       const r=await FP().pick();
       toast('A ler a pasta…',2000);
-      const MIME={mp3:'audio/mpeg',m4a:'audio/mp4',aac:'audio/aac',flac:'audio/flac',wav:'audio/wav',ogg:'audio/ogg',oga:'audio/ogg',opus:'audio/opus',wma:'audio/x-ms-wma',amr:'audio/amr'};
-      const out=(r.files||[]).map(x=>({name:x.name,size:x.size,folder:x.folder,get:async()=>{
-        const c=await FP().copy({uri:x.uri});
-        try{
-          const resp=await fetch(window.Capacitor.convertFileSrc('file://'+c.path));
-          const b=await resp.blob();
-          const ext=(x.name.split('.').pop()||'').toLowerCase();
-          return new File([b],x.name,{type:MIME[ext]||'audio/mpeg'});
-        }finally{FP().clean({path:c.path}).catch(()=>{});}
-      }}));
+      const out=(r.files||[]).map(x=>apkEntry(x));
       if(!out.length){toast('Nenhuma música encontrada nessa pasta');return;}
       await importFiles(out);
     }catch(e){if(!(e&&/cancel/i.test(e.message||e.errorMessage||'')))toast('Não foi possível abrir a pasta',3000);}
@@ -1557,6 +1561,125 @@ async function pickFolder(){
     return;
   }
   $('#dirfile').click();
+}
+
+/* ---------- Biblioteca automática (APK): lê as músicas do telefone ---------- */
+const LIB_KEY='batuque_lib';
+const libCfg=()=>{try{return JSON.parse(localStorage.getItem(LIB_KEY)||'null')||{};}catch(e){return {};}};
+const libSave=c=>{try{localStorage.setItem(LIB_KEY,JSON.stringify(c));}catch(e){}};
+const MIME_AUD={mp3:'audio/mpeg',m4a:'audio/mp4',aac:'audio/aac',flac:'audio/flac',wav:'audio/wav',ogg:'audio/ogg',oga:'audio/ogg',opus:'audio/opus',wma:'audio/x-ms-wma',amr:'audio/amr'};
+/* uma música do telefone, lida só no momento de importar (copia para a cache, lê, apaga a cópia) */
+const apkEntry=(x,auto)=>({name:x.name,size:x.size,folder:x.folder,auto:!!auto,get:async()=>{
+  const c=await FP().copy({uri:x.uri});
+  try{
+    const resp=await fetch(window.Capacitor.convertFileSrc('file://'+c.path));
+    const b=await resp.blob();
+    const ext=(x.name.split('.').pop()||'').toLowerCase();
+    return new File([b],x.name,{type:MIME_AUD[ext]||'audio/mpeg'});
+  }finally{FP().clean({path:c.path}).catch(()=>{});}
+}});
+async function libPermission(){
+  try{
+    if((await FP().libPermission()).granted)return true;
+    return !!(await FP().libRequest()).granted;
+  }catch(e){return false;}
+}
+async function libScan(){
+  if(!await libPermission()){toast('Sem permissão para ler as músicas do telefone. Podes ativá-la nas definições do Android.',4500);return null;}
+  toast('A procurar músicas no telefone…',2000);
+  try{const r=await FP().scanMusic();return r.files||[];}catch(e){toast('Não foi possível ler as músicas do telefone',3500);return null;}
+}
+/* lista de pastas com caixas de seleção; devolve as pastas escolhidas (ou null se cancelou) */
+async function libChoose(files,folders,pre,title,msg){
+  const cnt={};files.forEach(f=>{cnt[f.folder]=(cnt[f.folder]||0)+1;});
+  const box=document.createElement('div');
+  const all=document.createElement('button');all.className='lib-all';all.textContent='Selecionar / limpar tudo';
+  const list=document.createElement('div');list.className='lib-list';
+  const boxes=[];
+  folders.forEach(f=>{
+    const r=document.createElement('label');r.className='lib-row';
+    const c=document.createElement('input');c.type='checkbox';c.checked=pre.has(f);c.dataset.f=f;boxes.push(c);
+    const n=document.createElement('span');n.textContent=f||'(raiz)';
+    const k=document.createElement('small');k.textContent=cnt[f]+(cnt[f]>1?' músicas':' música');
+    r.append(c,n,k);list.append(r);
+  });
+  all.onclick=()=>{const on=!boxes.every(b=>b.checked);boxes.forEach(b=>b.checked=on);};
+  box.append(all,list);
+  const ok=await dlg({title,msg,node:box,ok:'Continuar',cancel:'Cancelar',icon:'folder'});
+  if(!ok)return null;
+  return boxes.filter(b=>b.checked).map(b=>b.dataset.f);
+}
+const libFolders=files=>[...new Set(files.map(f=>f.folder))].sort((a,b)=>a.localeCompare(b));
+/* escolher as pastas (primeira vez, ou quando o utilizador quer mudar) e importar */
+async function libSetup(first){
+  if(!window.IS_APK||!FP())return;
+  if(first){
+    const go=await dlg({title:'Ler as músicas do telefone',msg:'O Batuque pode encontrar sozinho as músicas do teu telefone, sem teres de as adicionar uma a uma.\nO Android vai pedir permissão para ler os ficheiros de música: toca em «Permitir».\nDepois escolhes as pastas que queres usar.',ok:'Continuar',cancel:'Agora não',icon:'folder'});
+    const c0=libCfg();c0.asked=true;libSave(c0);
+    if(!go)return;
+  }
+  const files=await libScan();if(!files)return;
+  if(!files.length){toast('Não encontrei músicas no telefone',3000);return;}
+  const folders=libFolders(files),cfg=libCfg();
+  const pre=new Set(cfg.folders||folders.filter(f=>!/(whatsapp|voice|record|call|ringtone|notification|alarm|telegram audio)/i.test(f)));
+  const chosen=await libChoose(files,folders,pre,'Que pastas queres usar?','Escolhe as pastas com as tuas músicas. Podes mudar isto mais tarde nas Definições.');
+  if(!chosen)return;
+  cfg.folders=chosen;cfg.known=folders;cfg.asked=true;libSave(cfg);
+  await libImport(files,chosen,false);
+}
+async function libImport(files,chosen,silent){
+  const sel=new Set(chosen);
+  const have=new Set(tracks.filter(t=>t.fname&&t.blob).flatMap(t=>[dupKey(t.fname,t.blob.size),dupKey(t.fname,t.psize||t.blob.size)]));
+  const fresh=files.filter(f=>sel.has(f.folder)&&!have.has(dupKey(f.name,f.size)));
+  if(!fresh.length){if(!silent)toast('A biblioteca já está em dia',2800);return 0;}
+  const gb=fresh.reduce((a,f)=>a+(f.size||0),0);
+  const ok=await dlg({title:silent?'Músicas novas no telefone':'Importar músicas',msg:'Encontrei '+fresh.length+(fresh.length>1?' músicas novas':' música nova')+' ('+fmtSize(gb)+').\nAs músicas são copiadas para dentro do Batuque.\nImportar agora?',ok:'Importar',cancel:'Agora não',icon:'folder'});
+  if(!ok)return 0;
+  await importFiles(fresh.map(f=>apkEntry(f,true)));
+  return fresh.length;
+}
+/* botão «Atualizar biblioteca» */
+async function libUpdate(silent){
+  if(!window.IS_APK||!FP()){toast('Esta função só existe na app instalada (APK)',3000);return;}
+  const cfg=libCfg();
+  if(!cfg.folders){await libSetup(false);return;}
+  if(silent&&!await (async()=>{try{return (await FP().libPermission()).granted;}catch(e){return false;}})())return;
+  const files=await libScan();if(!files)return;
+  /* pastas criadas depois da última vez: pergunta se queres usar */
+  const folders=libFolders(files),known=new Set(cfg.known||[]);
+  const novas=folders.filter(f=>!known.has(f));
+  if(novas.length){
+    const nf=await libChoose(files,novas,new Set(),'Pastas novas no telefone','Apareceram pastas com músicas desde a última vez. Marca as que queres usar.');
+    cfg.known=folders;
+    if(nf)cfg.folders=[...new Set([...(cfg.folders||[]),...nf])];
+    libSave(cfg);
+  }
+  const n=await libImport(files,cfg.folders||[],silent);
+  if(silent)return;
+  /* músicas que já não estão no telefone */
+  const key=new Set(files.map(f=>dupKey(f.name,f.size))),sel=new Set(cfg.folders||[]);
+  const gone=tracks.filter(t=>t.auto&&t.fname&&t.blob&&!key.has(dupKey(t.fname,t.psize||t.blob.size)));
+  if(files.length&&gone.length){
+    if(await dlg({title:'Músicas apagadas do telefone',msg:gone.length+(gone.length>1?' músicas já não estão':' música já não está')+' no telefone.\nRemover da biblioteca do Batuque?',ok:'Remover',cancel:'Manter',icon:'trash',danger:true})){
+      await delTracks(gone.map(t=>t.id));toast(gone.length+(gone.length>1?' músicas removidas':' música removida'),3000);
+    }
+  }
+}
+async function libPickFolders(){
+  if(!window.IS_APK||!FP())return;
+  const files=await libScan();if(!files)return;
+  const folders=libFolders(files),cfg=libCfg();
+  const chosen=await libChoose(files,folders,new Set(cfg.folders||[]),'Pastas de música','Marca as pastas que o Batuque deve usar.');
+  if(!chosen)return;
+  cfg.folders=chosen;cfg.known=folders;libSave(cfg);
+  await libImport(files,chosen,false);
+}
+/* ao abrir a app: pede permissão na primeira vez e depois procura músicas novas */
+function libBoot(){
+  if(!window.IS_APK||!FP())return;
+  const cfg=libCfg();
+  if(!cfg.asked){setTimeout(()=>libSetup(true),900);return;}
+  if(cfg.folders&&cfg.auto!==false)setTimeout(()=>libUpdate(true),2500);
 }
 $('#dirfile').onchange=async e=>{
   const files=[...e.target.files].filter(isAudio);e.target.value='';
@@ -1575,6 +1698,7 @@ $('#dirfile').onchange=async e=>{
 };
 /* botão + : ficheiros ou pasta */
 function addMenu(){sheet('Adicionar músicas',[
+  ...(window.IS_APK?[{label:'Atualizar biblioteca (músicas do telefone)',fn:()=>libUpdate(false)}]:[]),
   {label:'Adicionar ficheiros',fn:pickFiles},
   {label:'Adicionar pasta',fn:pickFolder}
 ]);}
@@ -4065,7 +4189,7 @@ function sysVolSync(){
   window.addEventListener('offline',off);
 })();
 
-load();
+load().then(()=>libBoot());
 </script>
 </body>
 </html>
