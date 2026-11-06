@@ -12,9 +12,12 @@ import android.graphics.drawable.ColorDrawable;
 import android.media.AudioManager;
 import android.provider.Settings;
 import android.util.Base64;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -168,14 +171,27 @@ public class BatuqueMediaPlugin extends Plugin {
                             : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
                     w.setAttributes(lp);
                 }
-                WindowInsetsControllerCompat c = WindowCompat.getInsetsController(w, w.getDecorView());
+                View decor = w.getDecorView();
+                WindowInsetsControllerCompat c = WindowCompat.getInsetsController(w, decor);
                 if (c == null) return;
                 if (on) {
+                    // a app desenha por baixo das barras e do entalhe: nenhuma faixa fica por cobrir
+                    WindowCompat.setDecorFitsSystemWindows(w, false);
+                    ViewCompat.setOnApplyWindowInsetsListener(decor, (v, insets) -> {
+                        // com o teclado aberto, a app sobe para o campo de texto continuar visível
+                        Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
+                        v.setPadding(0, 0, 0, insets.isVisible(WindowInsetsCompat.Type.ime()) ? ime.bottom : 0);
+                        return insets;
+                    });
                     c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
                     c.hide(WindowInsetsCompat.Type.systemBars());
                 } else {
                     c.show(WindowInsetsCompat.Type.systemBars());
+                    ViewCompat.setOnApplyWindowInsetsListener(decor, null);
+                    decor.setPadding(0, 0, 0, 0);
+                    WindowCompat.setDecorFitsSystemWindows(w, true);
                 }
+                ViewCompat.requestApplyInsets(decor);
             } catch (Exception e) { }
         });
         call.resolve();
