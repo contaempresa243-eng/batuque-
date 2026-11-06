@@ -825,7 +825,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.27.1';
+const APP_VERSION='1.28.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -3242,15 +3242,81 @@ async function lyJson(url){
   try{const r=await fetch(url,{signal:ac.signal});if(!r.ok)return null;return await r.json();}catch(e){return null;}finally{clearTimeout(to);}
 }
 const lyStrip=x=>(x||'').replace(/^\[[^\]]*\]\s*/gm,'').trim();
-async function lyFetch(t){
-  const title=lyClean(t.title),artist=lyArtist(t.artist),E=encodeURIComponent;
+/* Fontes de letras: cada toque na lupa tenta a fonte seguinte, se a anterior não encontrou.
+   As fontes 3 e 4 não permitem pedidos do navegador (CORS); só funcionam na app instalada (APK), com HTTP nativo. */
+const lyNorm=x=>(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+let _http;
+async function lyHttp(url,headers){
+  if(window.IS_APK){
+    try{
+      if(_http===undefined){const C=window.Capacitor;_http=(C.Plugins&&C.Plugins.CapacitorHttp)||C.registerPlugin('CapacitorHttp');}
+      const r=await _http.get({url,headers:Object.assign({'User-Agent':'Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36'},headers||{}),connectTimeout:12000,readTimeout:12000});
+      if(!r||r.status<200||r.status>=300)return null;
+      let d=r.data;if(typeof d==='string'){try{d=JSON.parse(d);}catch(e){return null;}}
+      return d;
+    }catch(e){return null;}
+  }
+  return lyJson(url);
+}
+/* o resultado é da música certa? (título parecido e, se houver, artista parecido) */
+function lyOk(candTitle,candArtists,title,artist){
+  const ct=lyNorm(candTitle),tt=lyNorm(title);
+  if(!ct||!tt||!(ct.includes(tt)||tt.includes(ct)))return false;
+  if(!artist)return true;
+  const ta=lyNorm(artist);
+  return (candArtists||[]).some(n=>{const c=lyNorm(n);return c&&(c.includes(ta)||ta.includes(c));});
+}
+const lyTidy=x=>(x||'').split('\n').filter(l=>!/^\s*(作词|作曲|编曲|制作人|混音|母带|词|曲)\s*[:：]/.test(l)).join('\n').replace(/\n{3,}/g,'\n\n').trim();
+async function lySrcLrclib(title,artist){
+  const E=encodeURIComponent;
   const pick=a=>{if(!Array.isArray(a))return '';for(const o of a){const x=(o.plainLyrics||lyStrip(o.syncedLyrics)||'').trim();if(x)return x;}return '';};
   let x='';
   if(artist){const o=await lyJson('https://lrclib.net/api/get?artist_name='+E(artist)+'&track_name='+E(title));if(o)x=(o.plainLyrics||lyStrip(o.syncedLyrics)||'').trim();}
   if(!x&&artist)x=pick(await lyJson('https://lrclib.net/api/search?track_name='+E(title)+'&artist_name='+E(artist)));
   if(!x)x=pick(await lyJson('https://lrclib.net/api/search?q='+E((artist+' '+title).trim())));
-  if(!x&&artist){const o=await lyJson('https://api.lyrics.ovh/v1/'+E(artist)+'/'+E(title));if(o&&o.lyrics)x=o.lyrics.trim();}
   return x;
+}
+async function lySrcOvh(title,artist){
+  if(!artist)return '';
+  const E=encodeURIComponent,o=await lyJson('https://api.lyrics.ovh/v1/'+E(artist)+'/'+E(title));
+  return o&&o.lyrics?o.lyrics.trim():'';
+}
+async function lySrcNetease(title,artist){
+  const E=encodeURIComponent;
+  const s=await lyHttp('https://music.163.com/api/search/get/web?csrf_token=&hlpretag=&hlposttag=&s='+E((artist+' '+title).trim())+'&type=1&offset=0&total=true&limit=8');
+  const songs=(s&&s.result&&s.result.songs)||[];
+  for(const g of songs){
+    if(!lyOk(g.name,(g.artists||[]).map(a=>a.name),title,artist))continue;
+    const l=await lyHttp('https://music.163.com/api/song/lyric?id='+g.id+'&lv=-1&kv=-1&tv=-1');
+    const x=lyTidy(lyStrip(l&&l.lrc&&l.lrc.lyric));
+    if(x&&x.length>40)return x;
+  }
+  return '';
+}
+async function lySrcQQ(title,artist){
+  const E=encodeURIComponent,H={'Referer':'https://y.qq.com/'};
+  const s=await lyHttp('https://c.y.qq.com/soso/fcgi-bin/client_search_cp?w='+E((artist+' '+title).trim())+'&format=json&n=8&p=1&t=0&new_json=1&cr=1',H);
+  const list=(s&&s.data&&s.data.song&&s.data.song.list)||[];
+  for(const g of list){
+    if(!lyOk(g.name||g.title,(g.singer||[]).map(a=>a.name),title,artist))continue;
+    const l=await lyHttp('https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?songmid='+E(g.mid)+'&format=json&g_tk=5381&nobase64=0',H);
+    let x=l&&l.lyric||'';
+    if(x&&!/\[\d\d:\d\d/.test(x)){try{x=new TextDecoder('utf-8').decode(Uint8Array.from(atob(x),c=>c.charCodeAt(0)));}catch(e){x='';}}
+    x=lyTidy(lyStrip(x).replace(/&#(\d+);/g,(m,n)=>String.fromCharCode(+n)).replace(/&apos;/g,"'"));
+    if(x&&x.length>40)return x;
+  }
+  return '';
+}
+const LY_SRC=[
+  {n:'LRCLIB',f:lySrcLrclib},
+  {n:'Lyrics.ovh',f:lySrcOvh},
+  {n:'NetEase',f:lySrcNetease,apk:true},
+  {n:'QQ Música',f:lySrcQQ,apk:true}
+];
+const lyTry={};   /* música -> próxima fonte a tentar */
+async function lyFetchFrom(t,k){
+  const title=lyClean(t.title),artist=lyArtist(t.artist);
+  try{return await LY_SRC[k].f(title,artist)||'';}catch(e){return '';}
 }
 async function lyTranslate(text,lang,prog){
   const lines=text.split('\n'),chunks=[];let cur='';
@@ -3300,14 +3366,32 @@ async function lySearch(){
   const t=cur();if(!t){toast('Toca uma música primeiro');return;}
   if(lyBusy)return;
   if(navigator.onLine===false){toast('Sem internet: não dá para procurar a letra',3500);return;}
-  lyBusy=true;$('#lsearch').classList.add('busy');lyRender('A procurar a letra…');
-  const id=t.id;let x='';
-  try{x=await lyFetch(t);}catch(e){}
+  const id=t.id,N=LY_SRC.length;
+  let k=lyTry[id]||0;
+  /* nas fontes só da app instalada, salta se estás no navegador */
+  while(k<N&&LY_SRC[k].apk&&!window.IS_APK)k++;
+  if(k>=N){lyTry[id]=0;k=0;}
+  lyBusy=true;$('#lsearch').classList.add('busy');
+  lyRender('A procurar a letra… (fonte '+(k+1)+' de '+N+': '+LY_SRC[k].n+')');
+  const x=await lyFetchFrom(t,k);
   lyBusy=false;$('#lsearch').classList.remove('busy');
-  if(x){lyDB[id]={t:x,ts:Date.now()};lySave();lyLang='orig';}
-  if(cur()&&cur().id===id){
-    if(x)lyRender();else lyRender('Não encontrei a letra de «'+t.title+'».\nPode estar com outro nome: renomeia a música com o título e o artista corretos e tenta outra vez.');
+  if(x){
+    lyDB[id]={t:x,ts:Date.now(),src:LY_SRC[k].n};lySave();lyLang='orig';lyTry[id]=0;
+    toast('Letra encontrada · '+LY_SRC[k].n,2800);
+    if(cur()&&cur().id===id)lyRender();
+    return;
   }
+  /* não encontrou: prepara a fonte seguinte para o próximo toque na lupa */
+  let nk=k+1;
+  while(nk<N&&LY_SRC[nk].apk&&!window.IS_APK)nk++;
+  const last=nk>=N;
+  lyTry[id]=last?0:nk;
+  if(!(cur()&&cur().id===id))return;
+  const msg=last
+    ?'Não encontrei a letra de «'+t.title+'» em nenhuma das fontes.\nPode estar com outro nome: renomeia a música com o título e o artista corretos e tenta outra vez.'
+    :'Não encontrei a letra na fonte «'+LY_SRC[k].n+'».\nToca outra vez no botão de busca para tentar «'+LY_SRC[nk].n+'» (fonte '+(nk+1)+' de '+N+').';
+  if(lyDB[id]){lyRender();toast(last?'Sem mais fontes. A letra guardada mantém-se.':'Nada na fonte '+LY_SRC[k].n+'. Toca outra vez para tentar a seguinte.',3500);}
+  else lyRender(msg);
 }
 async function lySetLang(l){
   const t=cur();if(!t)return;
