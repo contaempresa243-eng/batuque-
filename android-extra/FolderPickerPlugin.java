@@ -1,6 +1,15 @@
 package com.aldair.batuque;
 
+import android.Manifest;
 import android.app.Activity;
+import android.content.ContentUris;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.os.Build;
+import android.provider.MediaStore;
+import androidx.core.content.ContextCompat;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 import android.content.Intent;
 import android.net.Uri;
 import androidx.activity.result.ActivityResult;
@@ -19,7 +28,13 @@ import java.io.OutputStream;
 import java.util.UUID;
 
 /** Escolhe uma pasta inteira (com subpastas) e entrega as músicas uma a uma. */
-@CapacitorPlugin(name = "FolderPicker")
+@CapacitorPlugin(
+    name = "FolderPicker",
+    permissions = {
+        @Permission(strings = { Manifest.permission.READ_MEDIA_AUDIO }, alias = "audio33"),
+        @Permission(strings = { Manifest.permission.READ_EXTERNAL_STORAGE }, alias = "audioOld")
+    }
+)
 public class FolderPickerPlugin extends Plugin {
 
     @PluginMethod
@@ -110,5 +125,87 @@ public class FolderPickerPlugin extends Plugin {
             if (f.getParentFile() != null && f.getParentFile().equals(dir)) f.delete();
         }
         call.resolve();
+    }
+
+    // ---------- Biblioteca automática (MediaStore) ----------
+    private String audioAlias() { return Build.VERSION.SDK_INT >= 33 ? "audio33" : "audioOld"; }
+
+    private boolean hasAudio() {
+        String perm = Build.VERSION.SDK_INT >= 33 ? Manifest.permission.READ_MEDIA_AUDIO : Manifest.permission.READ_EXTERNAL_STORAGE;
+        return ContextCompat.checkSelfPermission(getContext(), perm) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    @PluginMethod
+    public void libPermission(PluginCall call) {
+        JSObject o = new JSObject();
+        o.put("granted", hasAudio());
+        call.resolve(o);
+    }
+
+    @PluginMethod
+    public void libRequest(PluginCall call) {
+        if (hasAudio()) {
+            JSObject o = new JSObject();
+            o.put("granted", true);
+            call.resolve(o);
+            return;
+        }
+        requestPermissionForAlias(audioAlias(), call, "onLibPerm");
+    }
+
+    @PermissionCallback
+    private void onLibPerm(PluginCall call) {
+        JSObject o = new JSObject();
+        o.put("granted", hasAudio());
+        call.resolve(o);
+    }
+
+    /** Lista todas as músicas do telefone (sem tocar nos ficheiros). */
+    @PluginMethod
+    public void scanMusic(PluginCall call) {
+        if (!hasAudio()) { call.reject("sem permissao"); return; }
+        new Thread(() -> {
+            Cursor c = null;
+            try {
+                String[] proj;
+                if (Build.VERSION.SDK_INT >= 29) {
+                    proj = new String[] { MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DISPLAY_NAME, MediaStore.Audio.Media.SIZE, MediaStore.Audio.Media.RELATIVE_PATH };
+                } else {
+                    proj = new String[] { MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DISPLAY_NAME, MediaStore.Audio.Media.SIZE, MediaStore.Audio.Media.DATA };
+                }
+                String sel = MediaStore.Audio.Media.IS_RINGTONE + "=0 AND " + MediaStore.Audio.Media.IS_NOTIFICATION + "=0 AND " + MediaStore.Audio.Media.IS_ALARM + "=0 AND " + MediaStore.Audio.Media.SIZE + ">100000";
+                c = getContext().getContentResolver().query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, proj, sel, null, MediaStore.Audio.Media.DISPLAY_NAME + " ASC");
+                JSArray files = new JSArray();
+                if (c != null) {
+                    while (c.moveToNext()) {
+                        long id = c.getLong(0);
+                        String name = c.getString(1);
+                        long size = c.getLong(2);
+                        String folder = c.getString(3);
+                        if (name == null) continue;
+                        if (folder == null) folder = "";
+                        if (Build.VERSION.SDK_INT < 29) {
+                            int k = folder.lastIndexOf('/');
+                            folder = k > 0 ? folder.substring(0, k) : "";
+                            folder = folder.replaceFirst("^/storage/[^/]+/", "").replaceFirst("^/sdcard/", "");
+                        }
+                        while (folder.endsWith("/")) folder = folder.substring(0, folder.length() - 1);
+                        JSObject o = new JSObject();
+                        o.put("uri", ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id).toString());
+                        o.put("name", name);
+                        o.put("size", size);
+                        o.put("folder", folder);
+                        files.put(o);
+                    }
+                }
+                JSObject r = new JSObject();
+                r.put("files", files);
+                call.resolve(r);
+            } catch (Exception e) {
+                call.reject(String.valueOf(e.getMessage()));
+            } finally {
+                if (c != null) c.close();
+            }
+        }).start();
     }
 }
