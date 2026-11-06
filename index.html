@@ -831,7 +831,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.29.1';
+const APP_VERSION='1.29.2';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -1748,8 +1748,7 @@ function rowHTML(t,i){
     <div class="cov" style="${cover(t)}">${covInner(t)}${on?'<span class="np"><u><i></i><i></i><i></i></u><b>A tocar</b></span>':''}</div>
     <div class="meta"><div class="t">${esc(t.title)}</div><div class="a">${esc(t.artist)}</div></div>
     <div class="rt"><span>${t.dur?fmt(t.dur):'--:--'}</span><span>${fmtSize(t.blob.size)}</span></div>
-    ${sel?'':`<button class="ib${t.fav?' on':''}" data-act="fav">${ic(t.fav?'heart':'heartO',22)}</button>
-    <button class="ib" data-act="more">${ic('more',22)}</button>`}</div>`;
+    ${sel?'':`<button class="ib" data-act="more">${ic('more',22)}</button>`}</div>`;
 }
 function render(){
   const m=$('#main');let h='';
@@ -1807,7 +1806,7 @@ function render(){
     if(!arr.length){
       if(subsN){}
       else if(view.t==='lib'&&!tracks.length)h+=`<div class="empty">${ic('music')}A tua biblioteca está vazia.<br>${window.IS_APK?'Vai a <b>Definições</b> e toca em <b>Atualizar biblioteca</b> para trazer as músicas do telefone.':'Toca no <b style="color:var(--yel)">+</b> para adicionar músicas ou uma pasta do telemóvel.'}${drumsSVG()}</div>`;
-      else h+=`<div class="empty">${ic(view.t==='fav'?'heart':'music')}${search?'Nada encontrado.':view.t==='fav'?'Toca no coração para guardar favoritos.':'Esta lista está vazia.'}</div>`;
+      else h+=`<div class="empty">${ic(view.t==='fav'?'heart':'music')}${search?'Nada encontrado.':view.t==='fav'?'Toca no coração do ecrã completo para guardar favoritos.':'Esta lista está vazia.'}</div>`;
     }else{
       if(subsN)h+=`<div class="a" style="padding:14px 2px 8px;font-weight:600">Músicas · ${arr.length}</div>`;
       if((view.t==='list'||view.t==='folder')&&!search)h+=`<div class="parow"><button class="btn" id="playall" style="margin:0">▶ Tocar tudo</button><button class="pshuf" id="pshuf" aria-label="Aleatório">${ic('shuf',24)}</button></div>`;
