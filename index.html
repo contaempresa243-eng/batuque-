@@ -73,7 +73,7 @@ main{flex:1;overflow-y:auto;padding:4px 12px 90px}
 .head2{display:flex;align-items:center;gap:8px;padding:6px 0 10px}
 .head2 h2{flex:1;font-size:19px}
 .lcard{display:flex;align-items:center;gap:12px;padding:12px;background:var(--card);border-radius:var(--r);margin-bottom:8px}
-.lcard .cov{background:linear-gradient(135deg,var(--red),color-mix(in srgb,var(--red) 45%,#000))}
+.lcard .cov{background:linear-gradient(135deg,var(--red),#7d0b17)}
 #mini{display:none;align-items:center;gap:6px;width:min(280px,calc(100vw - 16px));padding:6px 8px;background:var(--mini);border:1px solid var(--bd);border-radius:16px;position:fixed;left:8px;top:0;z-index:15;overflow:hidden;box-shadow:0 8px 24px #000a;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
 #mini.drag{cursor:grabbing;box-shadow:0 14px 34px #000c;transform:scale(1.03)}
 #mini .cov{width:36px;height:36px;border-radius:8px;font-size:15px}
@@ -501,7 +501,7 @@ button.srow:active{background:var(--card2)}
 .st-days div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;font-size:11px;color:var(--mut)}
 .st-days i{display:block;width:100%;border-radius:6px 6px 3px 3px;background:var(--yel);min-height:4px}
 .st-days div.hoje{color:var(--tx);font-weight:700}
-.prize{border-radius:22px;padding:18px 16px;text-align:center;background:linear-gradient(160deg,color-mix(in srgb,var(--yel) 28%,var(--card)),var(--card) 70%);border:1px solid color-mix(in srgb,var(--yel) 45%,transparent)}
+.prize{border-radius:22px;padding:18px 16px;text-align:center;background:var(--card);background:linear-gradient(160deg,color-mix(in srgb,var(--yel) 28%,var(--card)),var(--card) 70%);border:1px solid color-mix(in srgb,var(--yel) 45%,transparent)}
 .prize .tro svg{width:56px;height:56px;fill:var(--yel);filter:drop-shadow(0 4px 10px #0006)}
 .prize h3{font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:var(--yel);margin:4px 0 2px}
 .prize .gn{font-size:28px;font-weight:800;letter-spacing:-.5px;margin:2px 0}
@@ -517,7 +517,7 @@ button.srow:active{background:var(--card2)}
 #selg:disabled{opacity:.4}
 .fgl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .fcard{background:var(--card);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:10px}
-.fcard .cov{width:100%;height:auto;aspect-ratio:16/10;border-radius:12px;background:linear-gradient(135deg,var(--red),color-mix(in srgb,var(--red) 45%,#000))}
+.fcard .cov{width:100%;height:auto;aspect-ratio:16/10;border-radius:12px;background:linear-gradient(135deg,var(--red),#7d0b17)}
 .fcard .meta{flex:none}
 .lib-list{max-height:44vh;overflow:auto;margin:6px 0 4px;border-top:1px solid var(--bd)}
 .lib-row{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--bd);font-size:14px}
@@ -531,6 +531,14 @@ button.srow:active{background:var(--card2)}
 :root[data-theme=light].hasbg .fcard,:root[data-theme=light].hasbg .lcard{background:rgba(255,255,255,.46)}
 .hasbg .fcard .t,.hasbg .lcard .t{text-shadow:0 1px 4px rgba(0,0,0,.55)}
 .hasbg .fcard .a,.hasbg .lcard .a{text-shadow:0 1px 3px rgba(0,0,0,.5)}
+:root[data-theme=light].hasbg .fcard,:root[data-theme=light].hasbg .lcard{background:rgba(255,255,255,.84);box-shadow:0 2px 10px rgba(0,0,0,.12)}
+:root[data-theme=light].hasbg .fcard .t,:root[data-theme=light].hasbg .lcard .t{color:#111114;text-shadow:none}
+:root[data-theme=light].hasbg .fcard .a,:root[data-theme=light].hasbg .lcard .a{color:#4a4a55;text-shadow:none}
+:root[data-theme=light].hasbg .fcard .fbadge{color:#fff}
+:root[data-theme=light].hasbg .row{background:rgba(255,255,255,.8)}
+:root[data-theme=light].hasbg .row .t{color:#111114}
+:root[data-theme=light].hasbg .row.on .t{color:var(--yel)}
+:root[data-theme=light].hasbg .row .a,:root[data-theme=light].hasbg .row .rt{color:#4a4a55}
 .lcard[data-folder],.fcard[data-folder]{position:relative}
 .fbadge{position:absolute;display:flex;align-items:flex-end;gap:2px;padding:5px 4px;color:var(--yel);text-shadow:0 1px 3px #000c;font-size:12px;font-weight:800;line-height:1;pointer-events:none}.fcard .fbadge{color:#fff}
 .lcard .fbadge{right:12px;top:50%;margin-top:-13px}
@@ -574,7 +582,7 @@ header{position:relative}
 #seld:disabled{opacity:.4}
 .chk{min-width:22px;width:22px;height:22px;flex:none;border-radius:50%;border:2px solid var(--mut);display:grid;place-items:center;color:transparent;margin:0 0 0 0}
 .chk svg{width:15px;height:15px;fill:currentColor}
-.row.sel{background:color-mix(in srgb,var(--yel) 14%,transparent)}
+.row.sel{background:rgba(255,196,0,.14);background:color-mix(in srgb,var(--yel) 14%,transparent)}
 .row.sel .chk{background:var(--yel);border-color:var(--yel);color:#000}
 #sheet .box.qbox button{padding:10px 14px;font-size:15px}
 #sheet .btn{text-align:center;margin:10px 14px 0;width:calc(100% - 28px);border-radius:999px;font-weight:700;padding:13px}
@@ -831,7 +839,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.29.2';
+const APP_VERSION='1.29.3';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -4066,7 +4074,7 @@ function statsHTML(){
     d.folders.slice(0,5).forEach((f,i)=>{
       const v=f.p/d.total;
       h+=`<div class="st-row" data-folder="${encodeURIComponent(f.k)}"><span class="st-n">${i+1}</span>
-      <div class="cov" style="background:linear-gradient(135deg,var(--red),color-mix(in srgb,var(--red) 45%,#000))">${ic('folder',22)}</div>
+      <div class="cov" style="background:linear-gradient(135deg,var(--red),#7d0b17)">${ic('folder',22)}</div>
       <div class="meta"><div class="t">${esc(folderName(f.k))}</div><div class="a">${f.p} ${f.p>1?'reproduções':'reprodução'} · ${fmtT(f.s)}</div><div class="st-bar"><i style="width:${Math.max(3,v*100)}%"></i></div></div>
       <div class="st-pct">${pct(v)}</div></div>`;
     });
