@@ -120,6 +120,7 @@ nav button.on{color:var(--yel)}
 #full>*{position:relative;z-index:1}
 #full>#fbg,#full>#fshade{position:absolute;inset:0;z-index:0;pointer-events:none}
 #fbg{background-size:cover;background-position:center;background-repeat:no-repeat;filter:blur(10px) saturate(1.1);transform:scale(1.12)}
+#full.ufbg #fbg{filter:blur(2px) saturate(1.05);transform:scale(1.04)}
 #fshade{background:linear-gradient(180deg,rgba(13,13,13,.55) 0%,rgba(13,13,13,.35) 22%,rgba(13,13,13,.45) 55%,rgba(13,13,13,.88) 100%)}
 .fhead{display:flex;align-items:center;gap:8px}
 .ftx{flex:1;min-width:0;text-align:center}
@@ -728,6 +729,7 @@ nav{background:var(--bgg,var(--bg));box-shadow:inset 0 1px 0 var(--gbd);border-t
 <input type="file" id="imgfile" accept="image/*" hidden>
 <div id="cedit" role="dialog" aria-label="Ajustar capa"></div>
 <input type="file" id="bgfile" accept="image/*" hidden>
+<input type="file" id="fbgfile" accept="image/*" hidden>
 <input type="file" id="bkfile" hidden>
 <audio id="audio" preload="metadata"></audio>
 
@@ -885,7 +887,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.33.1';
+const APP_VERSION='1.34.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -952,19 +954,29 @@ const BG_KEY='batuque_bgimg';
 const getBg=()=>{try{return localStorage.getItem(BG_KEY)||'';}catch(e){return'';}};
 function applyBg(){const u=getBg();$('#bgimg').style.backgroundImage=u?`url("${u}")`:'';document.documentElement.classList.toggle('hasbg',!!u);}
 const loadImg=file=>new Promise((res,rej)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{URL.revokeObjectURL(u);res(im);};im.onerror=()=>{URL.revokeObjectURL(u);rej();};im.src=u;});
-async function setBgFromFile(file){
+async function setBgFromFile(file,key,after){
+  key=key||BG_KEY;
   try{
     const im=await loadImg(file);
     for(const max of [1280,900,600]){
       const sc=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');
       c.width=Math.max(1,Math.round(im.naturalWidth*sc));c.height=Math.max(1,Math.round(im.naturalHeight*sc));
       c.getContext('2d').drawImage(im,0,0,c.width,c.height);
-      try{localStorage.setItem(BG_KEY,c.toDataURL('image/jpeg',.8));applyBg();toast('Imagem de fundo definida');return true;}catch(e){}
+      try{localStorage.setItem(key,c.toDataURL('image/jpeg',.8));if(after)after();else applyBg();toast('Imagem de fundo definida');return true;}catch(e){}
     }
     toast('A imagem é demasiado grande');
   }catch(e){toast('Não foi possível abrir a imagem');}
   return false;
 }
+const FBG_KEY='batuque_fbgimg';
+const getFbg=()=>{try{return localStorage.getItem(FBG_KEY)||'';}catch(e){return'';}};
+function applyFbg(){
+  const u=getFbg(),f=$('#full');if(!f)return;
+  f.classList.toggle('ufbg',!!u);
+  const t=typeof cur==='function'?cur():null,bu=t&&typeof covURL==='function'?covURL(t):null;
+  $('#fbg').style.cssText=u?`background-image:url("${u}")`:(t?(bu?`background-image:url("${bu}")`:cover(t)):'');
+}
+function removeFbg(){try{localStorage.removeItem(FBG_KEY);}catch(e){}applyFbg();toast('Imagem de fundo removida');}
 function removeBg(){try{localStorage.removeItem(BG_KEY);}catch(e){}applyBg();toast('Imagem de fundo removida');}
 
 /* Modo ecrã cheio
@@ -3964,7 +3976,7 @@ function updateUI(){
     $('#ft').textContent=t.title;$('#fa').textContent=t.artist;
     $('#bigcov').style.background=cover(t).replace(/^background:/,'');$('#bigcov').innerHTML=covInner(t);
     const bu=covURL(t);
-    $('#fbg').style.cssText=bu?`background-image:url("${bu}")`:cover(t);
+    applyFbg();
     $('#tfav').className='ib'+(t.fav?' on':'');$('#tfav').innerHTML=ic(t.fav?'heart':'heartO',26);renderCar();
       }
   if($('#lyrics').classList.contains('show'))lyUI();
@@ -3985,10 +3997,17 @@ $('#fclose').innerHTML=ic('down');$('#fmore').innerHTML=ic('more');
 $('#tshare').innerHTML=ic('share');$('#teq').innerHTML=ic('tune');$('#tcover').innerHTML=ic('image');
 $('#tshare').onclick=()=>shareTrack(cur());
 $('#teq').onclick=openEQ;
+$('#fbgfile').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)setBgFromFile(f,FBG_KEY,applyFbg);};
+function coverMenu(t){
+  if(!t.cover){pickCover(t);return;}
+  sheet('Capa da música',[{label:'Ajustar zoom da capa',fn:()=>coverEdit(t,t.cover)},{label:'Escolher outra imagem',fn:()=>pickCover(t)},{label:'Remover capa',danger:true,fn:()=>setCover(t,null)}]);
+}
 $('#tcover').onclick=()=>{
   const t=cur();if(!t)return;
-  if(!t.cover){pickCover(t);return;}
-  sheet('Capa',[{label:'Ajustar zoom da capa',fn:()=>coverEdit(t,t.cover)},{label:'Escolher outra imagem',fn:()=>pickCover(t)},{label:'Remover capa',danger:true,fn:()=>setCover(t,null)}]);
+  const it=[{label:getFbg()?'Mudar imagem de fundo (galeria)':'Imagem de fundo do ecrã completo (galeria)',fn:()=>$('#fbgfile').click()}];
+  if(getFbg())it.push({label:'Remover imagem de fundo',danger:true,fn:removeFbg});
+  it.push({label:'Capa da música…',fn:()=>setTimeout(()=>coverMenu(t),0)});
+  sheet('Imagem',it);
 };
 $('#bshuf').innerHTML=ic('shuf');$('#bprev').innerHTML=ic('prev');$('#bnext').innerHTML=ic('next');
 $('#fab').innerHTML=ic('plus',22);
