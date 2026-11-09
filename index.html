@@ -611,7 +611,7 @@ header{position:relative}
   #full.show{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);grid-auto-rows:min-content;align-content:center;column-gap:22px;padding:calc(8px + env(safe-area-inset-top)) 24px calc(8px + env(safe-area-inset-bottom))}
   #full.show>.fhead,#full.show>#vol,#full.show>#qcar,#full.show>.tools,#full.show>#seek,#full.show>.times,#full.show>.ctl{grid-column:2}
   #full.show>#bigcov{grid-column:1;grid-row:1/span 7;align-self:center;justify-self:center;width:min(100%,calc(100vh - 40px));width:min(100%,calc(100dvh - 40px));margin:0}
-  #full.show #qcar{height:96px}
+  #full.show #qcar{height:auto}
 }
 @media (orientation:landscape) and (min-height:561px){
   #mixed,#settings,#app,#lyrics,#full,#dj{max-width:none;width:100%;margin:0}
@@ -624,6 +624,24 @@ header{position:relative}
 :root[data-theme=dark].hasbg.clearbg h1,:root[data-theme=dark].hasbg.clearbg .tact .ib,:root[data-theme=dark].hasbg.clearbg #main .t,:root[data-theme=dark].hasbg.clearbg #main .a,:root[data-theme=dark].hasbg.clearbg #main .rt,:root[data-theme=dark].hasbg.clearbg #main .rt span,:root[data-theme=dark].hasbg.clearbg #main .row .ib,:root[data-theme=dark].hasbg.clearbg #main .head2 h2,:root[data-theme=dark].hasbg.clearbg #main .head2 .ib{color:#fff!important;text-shadow:none!important}
 .hasbg.clearbg #main *{text-shadow:none!important}
 .hasbg.clearbg h1 b,.hasbg.clearbg #main .n,.hasbg.clearbg #main .row.on .t,.hasbg.clearbg .tact .ib.on{color:var(--yel)!important}
+
+/* ---------- Vidro: o tema aplica-se a toda a app ---------- */
+html,body,#settings,#mixed,#dj,#lyrics{background-color:var(--bg);background-image:var(--gbg,none);background-attachment:fixed}
+.search,.lcard,.fcard,.srow,.pal,.cs,.st-card,.st-row,.st-box,.st-hint,.mxi,.dk,.lpl,.ltr,.cebox,#selg,#sela,nav,#sheet .box,#dlg .dbox,#linfo .ib2,#mxprog .pb{-webkit-backdrop-filter:blur(14px) saturate(1.25);backdrop-filter:blur(14px) saturate(1.25);box-shadow:inset 0 0 0 1px var(--gbd)}
+nav{background:var(--bgg,var(--bg));box-shadow:inset 0 1px 0 var(--gbd);border-top:0}
+#sheet .box,#dlg .dbox,#linfo .ib2,.cebox{background:var(--cardx,var(--card))}
+#dlg .dbox{box-shadow:inset 0 0 0 1px var(--gbd),0 18px 50px #0008}
+/* ecrã completo */
+#fshade{background:linear-gradient(180deg,rgba(0,0,0,.34) 0%,rgba(0,0,0,.18) 30%,rgba(0,0,0,.26) 60%,rgba(0,0,0,.6) 100%)}
+#full .tools,#full .ctl,#full #vol,#full .qc{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.20);-webkit-backdrop-filter:blur(16px) saturate(1.3);backdrop-filter:blur(16px) saturate(1.3)}
+#full .tools,#full .ctl{border-radius:24px;padding:4px 8px}
+#full #vol{border-radius:999px;padding:4px 14px}
+#full #bigcov{border:1px solid rgba(255,255,255,.28);box-shadow:0 12px 40px rgba(0,0,0,.35)}
+#full .qc{width:88px;border-radius:16px;padding:6px 6px 7px;opacity:.9}
+#full .qc .cov{width:100%;height:auto;aspect-ratio:1;border-radius:11px}
+#full .qc.on{opacity:1;border-color:var(--yel);box-shadow:0 0 0 1px var(--yel)}
+#full .qc.on .cov{box-shadow:none}
+#full #qcar{padding-top:6px;padding-bottom:6px}
 </style>
 </head>
 <body>
@@ -866,7 +884,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.32.2';
+const APP_VERSION='1.33.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -910,10 +928,13 @@ function applyTheme(){
   const dk={bg:hsl(hu,sat,6.5),card:hsl(hu,sat,10.5),card2:hsl(hu,sat,15),bd:hsl(hu,sat,19),track:hsl(hu,sat,23)};
   const lt={bg:hsl(hu,sat+8,96),card:hsl(hu,sat+10,99),card2:hsl(hu,sat+8,92),bd:hsl(hu,sat+4,86),track:hsl(hu,sat+2,81)};
   const S=m==='light'?lt:dk;
-  st.setProperty('--bg',S.bg);st.setProperty('--card',S.card);st.setProperty('--card2',S.card2);st.setProperty('--bd',S.bd);st.setProperty('--track',S.track);
-  st.setProperty('--bg-d',dk.bg);st.setProperty('--card-d',dk.card);st.setProperty('--card2-d',dk.card2);st.setProperty('--track-d',dk.track);
   const rgb=h=>{const n=parseInt(h.slice(1),16);return (n>>16)+','+((n>>8)&255)+','+(n&255);};
-  st.setProperty('--mini','rgba('+rgb(m==='light'?lt.card:dk.card2)+',.97)');
+  const A=(h,a)=>'rgba('+rgb(h)+','+a+')',lg=m==='light';
+  st.setProperty('--bg',S.bg);st.setProperty('--card',A(S.card,lg?.55:.5));st.setProperty('--card2',A(S.card2,lg?.7:.62));st.setProperty('--cardx',A(S.card,lg?.8:.78));st.setProperty('--bd',S.bd);st.setProperty('--track',S.track);
+  st.setProperty('--gbd',lg?'rgba(255,255,255,.75)':'rgba(255,255,255,.12)');st.setProperty('--bgg',A(S.bg,lg?.6:.55));
+  st.setProperty('--g1',A(P.a,lg?.22:.34));st.setProperty('--g2',A(prim,lg?.26:.22));
+  st.setProperty('--gbg','radial-gradient(70% 45% at 12% 6%,var(--g1),transparent 70%),radial-gradient(60% 45% at 95% 42%,var(--g2),transparent 70%),radial-gradient(70% 45% at 25% 100%,var(--g1),transparent 70%)');
+  st.setProperty('--bg-d',dk.bg);st.setProperty('--card-d','rgba('+rgb(dk.card)+',.5)');st.setProperty('--card2-d','rgba('+rgb(dk.card2)+',.62)');st.setProperty('--track-d',dk.track);
   st.setProperty('--bgo','rgba('+rgb(S.bg)+','+(m==='light'?.76:.68)+')');
   st.setProperty('--red',P.a);st.setProperty('--yel',prim);st.setProperty('--yel-d',P.p);
   st.setProperty('--onp',onColor(prim));st.setProperty('--onp-d',onColor(P.p));st.setProperty('--tint',P.t);
