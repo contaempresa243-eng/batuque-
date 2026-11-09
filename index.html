@@ -531,8 +531,8 @@ button.srow:active{background:var(--card2)}
 .apkfs #full{padding-top:calc(38px + env(safe-area-inset-top))}
 .hasbg .fcard,.hasbg .lcard{background:rgba(24,24,24,.34);box-shadow:none;border:0}
 :root[data-theme=light].hasbg .fcard,:root[data-theme=light].hasbg .lcard{background:rgba(255,255,255,.46)}
-.hasbg .fcard .t,.hasbg .lcard .t{text-shadow:0 1px 4px rgba(0,0,0,.55)}
-.hasbg .fcard .a,.hasbg .lcard .a{text-shadow:0 1px 3px rgba(0,0,0,.5)}
+.hasbg .fcard .t,.hasbg .lcard .t{text-shadow:none}
+.hasbg .fcard .a,.hasbg .lcard .a{text-shadow:none}
 :root[data-theme=light].hasbg .fcard,:root[data-theme=light].hasbg .lcard{background:rgba(255,255,255,.68);box-shadow:0 2px 10px rgba(0,0,0,.12)}
 :root[data-theme=light].hasbg .fcard .t,:root[data-theme=light].hasbg .lcard .t{color:#111114;text-shadow:none}
 :root[data-theme=light].hasbg .fcard .a,:root[data-theme=light].hasbg .lcard .a{color:#4a4a55;text-shadow:none}
@@ -603,8 +603,9 @@ header{position:relative}
 /* biblioteca e pastas: totalmente transparentes sobre a imagem de fundo */
 .hasbg.clearbg #bgimg::after{background:transparent!important}
 .hasbg.clearbg .fcard,.hasbg.clearbg .lcard,.hasbg.clearbg .row{background:transparent!important;box-shadow:none!important;border:0!important;backdrop-filter:none!important}
-:root[data-theme=light].hasbg.clearbg h1,:root[data-theme=light].hasbg.clearbg .tact .ib,:root[data-theme=light].hasbg.clearbg #main .t,:root[data-theme=light].hasbg.clearbg #main .a,:root[data-theme=light].hasbg.clearbg #main .rt,:root[data-theme=light].hasbg.clearbg #main .rt span,:root[data-theme=light].hasbg.clearbg #main .row .ib,:root[data-theme=light].hasbg.clearbg #main .head2 h2,:root[data-theme=light].hasbg.clearbg #main .head2 .ib{color:#000!important;text-shadow:0 0 4px rgba(255,255,255,.9),0 0 10px rgba(255,255,255,.6)}
-:root[data-theme=dark].hasbg.clearbg h1,:root[data-theme=dark].hasbg.clearbg .tact .ib,:root[data-theme=dark].hasbg.clearbg #main .t,:root[data-theme=dark].hasbg.clearbg #main .a,:root[data-theme=dark].hasbg.clearbg #main .rt,:root[data-theme=dark].hasbg.clearbg #main .rt span,:root[data-theme=dark].hasbg.clearbg #main .row .ib,:root[data-theme=dark].hasbg.clearbg #main .head2 h2,:root[data-theme=dark].hasbg.clearbg #main .head2 .ib{color:#fff!important;text-shadow:0 1px 4px rgba(0,0,0,.85),0 0 10px rgba(0,0,0,.55)}
+:root[data-theme=light].hasbg.clearbg h1,:root[data-theme=light].hasbg.clearbg .tact .ib,:root[data-theme=light].hasbg.clearbg #main .t,:root[data-theme=light].hasbg.clearbg #main .a,:root[data-theme=light].hasbg.clearbg #main .rt,:root[data-theme=light].hasbg.clearbg #main .rt span,:root[data-theme=light].hasbg.clearbg #main .row .ib,:root[data-theme=light].hasbg.clearbg #main .head2 h2,:root[data-theme=light].hasbg.clearbg #main .head2 .ib{color:#000!important;text-shadow:none!important}
+:root[data-theme=dark].hasbg.clearbg h1,:root[data-theme=dark].hasbg.clearbg .tact .ib,:root[data-theme=dark].hasbg.clearbg #main .t,:root[data-theme=dark].hasbg.clearbg #main .a,:root[data-theme=dark].hasbg.clearbg #main .rt,:root[data-theme=dark].hasbg.clearbg #main .rt span,:root[data-theme=dark].hasbg.clearbg #main .row .ib,:root[data-theme=dark].hasbg.clearbg #main .head2 h2,:root[data-theme=dark].hasbg.clearbg #main .head2 .ib{color:#fff!important;text-shadow:none!important}
+.hasbg.clearbg #main *{text-shadow:none!important}
 .hasbg.clearbg h1 b,.hasbg.clearbg #main .n,.hasbg.clearbg #main .row.on .t,.hasbg.clearbg .tact .ib.on{color:var(--yel)!important}
 </style>
 </head>
@@ -848,7 +849,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.30.0';
+const APP_VERSION='1.30.1';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
