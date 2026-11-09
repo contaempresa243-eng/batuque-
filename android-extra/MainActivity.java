@@ -14,8 +14,9 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(BatuqueMediaPlugin.class);
         super.onCreate(savedInstanceState);
         try {
-            // fundo escuro desde o início (sem faixas brancas)
-            getWindow().setBackgroundDrawable(new ColorDrawable(Color.parseColor("#0d0d0d")));
+            // janela transparente desde o início: mostra o fundo do telemóvel (o JavaScript pode voltar a pintá-la)
+            getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            getBridge().getWebView().setBackgroundColor(Color.TRANSPARENT);
         } catch (Exception e) { }
         try {
             // permite que a música volte a tocar a partir da notificação, sem um toque novo no ecrã

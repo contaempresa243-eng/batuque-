@@ -137,15 +137,17 @@ public class BatuqueMediaPlugin extends Plugin {
     public void setTheme(PluginCall call) {
         final String col = call.getString("color", "#0d0d0d");
         final boolean dark = Boolean.TRUE.equals(call.getBoolean("dark", true));
+        final boolean clear = Boolean.TRUE.equals(call.getBoolean("clear", false));
         if (getActivity() == null) { call.resolve(); return; }
         getActivity().runOnUiThread(() -> {
             try {
-                int c = Color.parseColor(col);
+                int c = clear ? Color.TRANSPARENT : Color.parseColor(col);
                 Window w = getActivity().getWindow();
                 w.setBackgroundDrawable(new ColorDrawable(c));
                 w.getDecorView().setBackgroundColor(c);
                 w.setStatusBarColor(c);
                 w.setNavigationBarColor(c);
+                try { getBridge().getWebView().setBackgroundColor(c); } catch (Exception e2) { }
                 WindowInsetsControllerCompat ic = WindowCompat.getInsetsController(w, w.getDecorView());
                 if (ic != null) {
                     ic.setAppearanceLightStatusBars(!dark);
