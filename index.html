@@ -51,7 +51,15 @@ main{flex:1;overflow-y:auto;padding:4px 12px 90px}
 #bigcov{touch-action:none;user-select:none;-webkit-user-select:none;position:relative;will-change:transform}
 #bigcov .fast{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:#000b;color:#fff;font-size:15px;font-weight:800;text-shadow:none;padding:6px 14px;border-radius:999px;letter-spacing:.3px;pointer-events:none}
 
-#viz{display:block;flex:none;width:100%;height:56px;margin:10px 0 4px;pointer-events:none}
+#qcar{flex:none;display:flex;gap:10px;overflow-x:auto;overflow-y:hidden;margin:10px -24px 4px;padding:4px 24px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x}
+#qcar::-webkit-scrollbar{display:none}
+.qc{flex:none;width:76px;scroll-snap-align:center;cursor:pointer;opacity:.78}
+.qc .cov{width:76px;height:76px;border-radius:12px;box-sizing:border-box}
+.qc .t{font-size:11px;font-weight:600;margin-top:5px;color:var(--tx)}
+.qc .a{font-size:10px;color:var(--mut)}
+.qc.on{opacity:1}
+.qc.on .cov{box-shadow:0 0 0 2px var(--yel)}
+.qc.on .t{color:var(--yel)}
 .cov img,#bigcov img{width:100%;height:100%;object-fit:cover;display:block}
 .meta{flex:1;min-width:0}
 .t{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -592,9 +600,9 @@ header{position:relative}
   #mixed,#settings,#app,#lyrics,#full{max-width:none;width:100%;margin:0}
   #linfo .ib2,#sheet .box{max-width:none}
   #full.show{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);grid-auto-rows:min-content;align-content:center;column-gap:22px;padding:calc(8px + env(safe-area-inset-top)) 24px calc(8px + env(safe-area-inset-bottom))}
-  #full.show>.fhead,#full.show>#vol,#full.show>#viz,#full.show>.tools,#full.show>#seek,#full.show>.times,#full.show>.ctl{grid-column:2}
+  #full.show>.fhead,#full.show>#vol,#full.show>#qcar,#full.show>.tools,#full.show>#seek,#full.show>.times,#full.show>.ctl{grid-column:2}
   #full.show>#bigcov{grid-column:1;grid-row:1/span 7;align-self:center;justify-self:center;width:min(100%,calc(100vh - 40px));width:min(100%,calc(100dvh - 40px));margin:0}
-  #full.show #viz{height:34px}
+  #full.show #qcar{height:96px}
 }
 @media (orientation:landscape) and (min-height:561px){
   #mixed,#settings,#app,#lyrics,#full,#dj{max-width:none;width:100%;margin:0}
@@ -634,16 +642,16 @@ header{position:relative}
   <div class="fhead">
     <button class="ib" id="fclose" style="color:var(--tx)"></button>
     <div class="ftx"><div class="ft" id="ft"></div><div class="fa" id="fa"></div></div>
-    <button class="ib" id="ffav"></button>
+    <span style="width:40px;flex:none"></span>
   </div>
   <div id="vol"><button class="ib" id="vico" aria-label="Silenciar"></button><div id="vtrack"><div id="vfill"></div></div><span id="vpct">100%</span></div>
-  <canvas id="viz" aria-hidden="true"></canvas>
+  <div id="qcar" aria-label="Lista de músicas"></div>
   <div id="bigcov" class="bc"></div>
   <div class="tools">
     <button class="ib" id="tshare" aria-label="Enviar"></button>
     <button class="ib" id="teq" aria-label="Equalizador"></button>
     <button class="ib" id="tcover" aria-label="Mudar capa"></button>
-    <button class="ib" id="tqueue" aria-label="Lista de músicas"></button>
+    <button class="ib" id="tfav" aria-label="Favorito"></button>
     <button class="ib" id="fmore" aria-label="Menu"></button>
   </div>
   <input type="range" id="seek" min="0" max="1000" value="0">
@@ -849,7 +857,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.30.1';
+const APP_VERSION='1.31.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -2231,64 +2239,31 @@ try{localStorage.removeItem('batuque_np');}catch(e){}
 if('serviceWorker'in navigator){navigator.serviceWorker.getRegistration().then(r=>r&&r.getNotifications({tag:'batuque-np'}).then(l=>l.forEach(n=>n.close()))).catch(()=>{});}
 
 
-/* ---------- Visualizador (corrente elétrica que reage à música) ---------- */
-const vz=$('#viz'),VN=24;let vzLevels=new Array(VN).fill(0),vzRaf=0,vzData=null,vzT=0;
-function vzSize(){
-  const r=vz.getBoundingClientRect(),d=Math.min(window.devicePixelRatio||1,2);
-  const w=Math.round(r.width*d),h=Math.round(r.height*d);
-  if(w&&(vz.width!==w||vz.height!==h)){vz.width=w;vz.height=h;}
+/* ---------- Carrossel de músicas (ecrã completo) ---------- */
+const qcar=$('#qcar');let qcKey='';
+function qcCenter(smooth){
+  const el=qcar.querySelector('.qc.on');if(!el||!qcar.clientWidth)return;
+  const x=el.offsetLeft-(qcar.clientWidth-el.offsetWidth)/2;
+  qcar.scrollTo({left:Math.max(0,x),behavior:smooth?'smooth':'auto'});
 }
-function vzFrame(){
-  vzRaf=0;
-  if(!$('#full').classList.contains('show')||document.hidden)return;
-  vzSize();
-  const c=vz.getContext('2d'),W=vz.width,H=vz.height;if(!W)return;
-  const playing=!audio.paused&&!audio.ended;
-  if(playing&&!vzAn&&actx===null)initEQ();
-  if(vzAn&&!vzData)vzData=new Uint8Array(vzAn.frequencyBinCount);
-  let got=false;
-  if(playing&&vzAn&&vzData){vzAn.getByteFrequencyData(vzData);got=vzData.some(v=>v>0);}
-  vzT+=.09;
-  const bins=vzData?Math.floor(vzData.length*.75):0;
-  for(let i=0;i<VN;i++){
-    let v=0;
-    if(playing){
-      if(got){
-        const a=Math.floor(Math.pow(i/VN,1.6)*bins),b=Math.max(a+1,Math.floor(Math.pow((i+1)/VN,1.6)*bins));
-        let m=0;for(let k=a;k<b;k++)m=Math.max(m,vzData[k]);
-        v=Math.pow(m/255,1.25);
-      }else v=.25+.2*Math.sin(vzT*1.7+i*.7)+.15*Math.sin(vzT*2.9+i*1.9);
-    }
-    const k=v>vzLevels[i]?.6:.14;
-    vzLevels[i]+=(v-vzLevels[i])*k;
+function renderCar(){
+  const key=queue.length+':'+qi+':'+(queue[0]||'')+':'+ctxName;
+  if(key===qcKey)return;
+  qcKey=key;
+  const from=Math.max(0,qi-40),to=Math.min(queue.length,qi+80);
+  let h='';
+  for(let i=from;i<to;i++){
+    const t=byId(queue[i]);if(!t)continue;
+    h+=`<div class="qc${i===qi?' on':''}" data-i="${i}"><div class="cov" style="${cover(t)}">${covInner(t)}</div><div class="t">${esc(t.title)}</div><div class="a">${esc(t.artist)}</div></div>`;
   }
-  c.clearRect(0,0,W,H);
-  /* corrente elétrica: linha fina em zigue-zague, com faíscas que crescem com a música */
-  const col=getComputedStyle($('#full')).getPropertyValue('--yel').trim()||'#ffcb05',mid=H/2,d=W/312;
-  const PN=VN*2;
-  const pts=[];
-  let tot=0;for(let i=0;i<VN;i++)tot+=vzLevels[i];
-  const pw=Math.min(1,tot/VN*2.2);
-  for(let j=0;j<=PN;j++){
-    const x=j/PN,f=x*(VN-1),i0=Math.floor(f),i1=Math.min(VN-1,i0+1),lv=vzLevels[i0]+(vzLevels[i1]-vzLevels[i0])*(f-i0);
-    const env=Math.sin(Math.PI*x)**.6;
-    const amp=(.06+.94*Math.max(lv,pw*.35))*env*(H/2-3);
-    const jit=(Math.random()*2-1)*amp*(j===0||j===PN?0:1);
-    pts.push([x*W,mid+jit+Math.sin(vzT*3+j*.8)*amp*.12]);
-  }
-  const path=()=>{c.beginPath();pts.forEach((q,j)=>j?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]));};
-  c.lineJoin='round';c.lineCap='round';
-  c.shadowColor=col;c.shadowBlur=14*d;
-  c.strokeStyle=col;c.globalAlpha=.35+.4*pw;c.lineWidth=3.2*d;path();c.stroke();
-  c.shadowBlur=6*d;c.globalAlpha=1;c.lineWidth=1.3*d;path();c.stroke();
-  c.shadowBlur=0;c.strokeStyle='#fff';c.globalAlpha=.55+.4*pw;c.lineWidth=.6*d;path();c.stroke();
-  c.globalAlpha=1;
-  if(playing||vzLevels.some(l=>l>.02))vzRaf=requestAnimationFrame(vzFrame);
+  qcar.innerHTML=h;
+  requestAnimationFrame(()=>qcCenter(false));
 }
-function vzKick(){if(!vzRaf&&$('#full').classList.contains('show'))vzRaf=requestAnimationFrame(vzFrame);}
-audio.addEventListener('play',vzKick);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)vzKick();});
-
+qcar.addEventListener('click',e=>{
+  const x=e.target.closest('.qc');if(!x)return;
+  const i=+x.dataset.i;if(i===qi)return;
+  qi=i;loadCur();
+});
 
 /* ---------- Mix entre músicas (crossfade) ----------
    A música atual é copiada para um segundo leitor, já a tocar em silêncio e sincronizado, antes da transição.
@@ -3947,7 +3922,7 @@ function updateUI(){
     $('#bigcov').style.background=cover(t).replace(/^background:/,'');$('#bigcov').innerHTML=covInner(t);
     const bu=covURL(t);
     $('#fbg').style.cssText=bu?`background-image:url("${bu}")`:cover(t);
-    $('#ffav').className='ib'+(t.fav?' on':'');$('#ffav').innerHTML=ic(t.fav?'heart':'heartO',28);
+    $('#tfav').className='ib'+(t.fav?' on':'');$('#tfav').innerHTML=ic(t.fav?'heart':'heartO',26);renderCar();
       }
   if($('#lyrics').classList.contains('show'))lyUI();
   $('#bplay').innerHTML=ic(audio.paused?'play':'pause');
@@ -3956,15 +3931,15 @@ function updateUI(){
   $('#brep').className='ib'+(repeat?' act':'');
   $('#brep').innerHTML=ic(repeat===2?'rep1':'rep');
 }
-function openFull(){$('#lyrics').classList.remove('show');$('#full').classList.add('show');vzKick();}
+function openFull(){$('#lyrics').classList.remove('show');$('#full').classList.add('show');requestAnimationFrame(()=>qcCenter(false));}
 $('#fclose').onclick=()=>$('#full').classList.remove('show');
 $('#fmore').onclick=()=>{const t=cur();if(t)trackMenu(t,true);};
-$('#ffav').onclick=()=>{const t=cur();if(t)toggleFav(t);};
+$('#tfav').onclick=()=>{const t=cur();if(t)toggleFav(t);};
 $('#bplay').onclick=toggle;$('#bnext').onclick=()=>next(false);$('#bprev').onclick=()=>prev();
 $('#bshuf').onclick=()=>{shuffle=!shuffle;toast(shuffle?'Aleatório ligado':'Aleatório desligado');updateUI();};
 $('#brep').onclick=()=>{repeat=(repeat+1)%3;toast(['Repetir desligado','Repetir tudo','Repetir uma'][repeat]);updateUI();};
 $('#fclose').innerHTML=ic('down');$('#fmore').innerHTML=ic('more');
-$('#tshare').innerHTML=ic('share');$('#teq').innerHTML=ic('tune');$('#tcover').innerHTML=ic('image');$('#tqueue').innerHTML=ic('queue');
+$('#tshare').innerHTML=ic('share');$('#teq').innerHTML=ic('tune');$('#tcover').innerHTML=ic('image');
 $('#tshare').onclick=()=>shareTrack(cur());
 $('#teq').onclick=openEQ;
 $('#tcover').onclick=()=>{
@@ -3972,7 +3947,6 @@ $('#tcover').onclick=()=>{
   if(!t.cover){pickCover(t);return;}
   sheet('Capa',[{label:'Ajustar zoom da capa',fn:()=>coverEdit(t,t.cover)},{label:'Escolher outra imagem',fn:()=>pickCover(t)},{label:'Remover capa',danger:true,fn:()=>setCover(t,null)}]);
 };
-$('#tqueue').onclick=openQueue;
 $('#bshuf').innerHTML=ic('shuf');$('#bprev').innerHTML=ic('prev');$('#bnext').innerHTML=ic('next');
 $('#fab').innerHTML=ic('plus',22);
 const NAV={lib:['music','Músicas'],fav:['heart','Favoritos'],stats:['stats','Estatísticas'],lists:['list','Listas']};
