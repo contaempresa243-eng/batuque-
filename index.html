@@ -644,6 +644,15 @@ nav{background:var(--bgg,var(--bg));box-shadow:inset 0 1px 0 var(--gbd);border-t
 #full .qc.on{opacity:1;box-shadow:0 0 0 2px var(--yel)}
 #full .qc.on .cov{box-shadow:none}
 #full #qcar{padding-top:6px;padding-bottom:6px}
+
+/* ---------- Transparência total (APK): a app deixa ver o fundo do telemóvel ---------- */
+:root.clr,.clr html,.clr body,.clr #settings,.clr #mixed,.clr #dj,.clr #lyrics,.clr #full{background:transparent!important;background-image:none!important}
+.clr #fshade{display:none}
+.clr #full:not(.ufbg) #fbg{display:none}
+.clr .lcard,.clr .fcard,.clr .srow,.clr .pal,.clr .cs,.clr .st-card,.clr .st-row,.clr .st-box,.clr .st-hint,.clr .mxi,.clr .dk,.clr .lpl,.clr .ltr,.clr #selg,.clr #sela,.clr nav,.clr .row:active,.clr #full .tools,.clr #full .ctl,.clr #full #vol,.clr #full .qc{background:transparent!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;box-shadow:none!important;border-color:transparent!important}
+.clr .search{background:transparent!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;border:1px solid var(--gbd)}
+.clr nav{border-top:0}
+.clr #full .qc.on{box-shadow:0 0 0 2px var(--yel)!important}
 </style>
 </head>
 <body>
@@ -887,7 +896,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.34.0';
+const APP_VERSION='1.35.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -910,9 +919,10 @@ const PALS=[
   {id:'grafite',n:'Grafite',a:'#546e7a',p:'#eceff1',pl:'#37474f',t:'#15181a'}
 ];
 const CARDS=[['classic','Clássico'],['disc','Disco'],['sharp','Quadrado'],['polaroid','Polaroide'],['glass','Vidro'],['neon','Néon']];
-let CFG={pal:'angola',mode:'dark',card:'classic'};
+let CFG={pal:'angola',mode:'dark',card:'classic',clear:true};
 try{Object.assign(CFG,JSON.parse(localStorage.getItem('batuque_cfg')||'{}'));}catch(e){}
 if(!PALS.some(p=>p.id===CFG.pal))CFG.pal='angola';
+if(typeof CFG.clear!=='boolean')CFG.clear=true;
 if(!['dark','light','auto'].includes(CFG.mode))CFG.mode='dark';
 if(!CARDS.some(c=>c[0]===CFG.card))CFG.card='classic';
 const saveCfg=()=>{try{localStorage.setItem('batuque_cfg',JSON.stringify(CFG));}catch(e){}};
@@ -926,6 +936,7 @@ function applyTheme(){
   const P=PALS.find(p=>p.id===CFG.pal)||PALS[0],m=effMode(),d=document.documentElement,st=d.style;
   const prim=m==='light'?P.pl:P.p;
   d.dataset.theme=m;
+  const clr=!!(window.IS_APK&&CFG.clear);d.classList.toggle('clr',clr);
   /* o tema colore todas as superfícies: fundo, cartões, linhas, barras */
   const hu=hueOf(P.a),sat=P.id==='grafite'?12:(P.id==='angola'?22:30);
   const dk={bg:hsl(hu,sat,6.5),card:hsl(hu,sat,10.5),card2:hsl(hu,sat,15),bd:hsl(hu,sat,19),track:hsl(hu,sat,23)};
@@ -943,7 +954,7 @@ function applyTheme(){
   st.setProperty('--onp',onColor(prim));st.setProperty('--onp-d',onColor(P.p));st.setProperty('--tint',P.t);
   $('#full').dataset.card=CFG.card;
   const mt=document.querySelector('meta[name=theme-color]');if(mt)mt.content=S.bg;
-  if(window.BM){try{window.BM.setTheme({color:S.bg,dark:m!=='light'});}catch(e){}}
+  if(window.BM){try{window.BM.setTheme({color:S.bg,dark:m!=='light',clear:clr});}catch(e){}}
   applyBg();
   clearTimeout(window.__artT);window.__artT=setTimeout(()=>{try{if(cur())setSession(cur());}catch(e){}},200);
 }
@@ -1218,6 +1229,7 @@ function renderSettings(){
     h+=`<div class="sgroup">Ecrã</div>
     <button class="srow" data-go="theme"><span class="si">${ic('palette')}</span><span class="st"><b>Tema</b><small>Paleta de cores, galeria e estilo do cartão</small></span>${ic('chev')}</button>
     <div class="srow"><span class="si">${ic('contrast')}</span><span class="st"><b>Aparência</b><small>Escuro, claro ou predefinido (segue o sistema)</small></span><div class="seg">${modes.map(([k,n])=>`<button data-mode="${k}" class="${CFG.mode===k?'on':''}">${n}</button>`).join('')}</div></div>
+    ${window.IS_APK?`<button class="srow" data-act="clr"><span class="si">${ic('image')}</span><span class="st"><b>Transparência total</b><small>A app fica transparente e mostra o fundo do telemóvel, como se fosse o próprio ecrã</small></span><span class="sw${CFG.clear?' on':''}"></span></button>`:''}
     <button class="srow" data-act="fs"><span class="si">${ic('fullscreen')}</span><span class="st"><b>Modo ecrã cheio</b><small>${window.IS_APK?'Esconde a barra de estado e a de navegação · desliza do bordo para as ver':(fsNative()?'Sempre ligado na app instalada':'Ligado por defeito · esconde as barras e entra no primeiro toque')}</small></span><span class="sw${(fsNative()||fsWant())?' on':''}"></span></button>
     <div class="sgroup">Dados</div>
     ${window.IS_APK?`<button class="srow" data-act="libup"><span class="si">${ic('refresh')}</span><span class="st"><b>Atualizar biblioteca</b><small>Procura músicas novas no telefone e importa-as</small></span>${ic('chev')}</button>
@@ -1244,6 +1256,7 @@ $('#sset').addEventListener('click',async e=>{
   if(d.pal){CFG.pal=d.pal;saveCfg();applyTheme();renderSettings();return;}
   if(d.mode){CFG.mode=d.mode;saveCfg();applyTheme();renderSettings();return;}
   if(d.card){CFG.card=d.card;saveCfg();applyTheme();renderSettings();return;}
+  if(d.act==='clr'){CFG.clear=!CFG.clear;saveCfg();applyTheme();renderSettings();return;}
   if(d.act==='fs')toggleFS();
   else if(d.act==='update')checkUpdate();
   else if(d.act==='dupes')removeDupes();
