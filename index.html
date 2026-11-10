@@ -659,7 +659,7 @@ nav{background:var(--bgg,var(--bg));box-shadow:inset 0 1px 0 var(--gbd);border-t
 .clr .lcard,.clr .fcard,.clr .srow,.clr .pal,.clr .cs,.clr .st-card,.clr .st-row,.clr .st-box,.clr .st-hint,.clr .mxi,.clr .dk,.clr .lpl,.clr .ltr,.clr #selg,.clr #sela,.clr nav,.clr .row:active,.clr #full .tools,.clr #full .ctl,.clr #full #vol,.clr #full .qc{background:transparent!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;box-shadow:none!important;border-color:transparent!important}
 .clr .search{background:transparent!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;border:1px solid var(--gbd)}
 .clr nav{border-top:0}
-:root.clr #full{background:rgba(20,20,24,.38)!important;-webkit-backdrop-filter:blur(24px) saturate(1.3);backdrop-filter:blur(24px) saturate(1.3)}
+:root.clr #full,:root.clr #settings,:root.clr.glassv #app{background:rgba(20,20,24,.4)!important;-webkit-backdrop-filter:blur(24px) saturate(1.3);backdrop-filter:blur(24px) saturate(1.3)}
 </style>
 </head>
 <body>
@@ -903,7 +903,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.36.0';
+const APP_VERSION='1.36.1';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -1855,6 +1855,7 @@ function rowHTML(t,i){
 function render(){
   const m=$('#main');let h='';
   document.documentElement.classList.toggle('clearbg',view.t==='lib'||view.t==='folders'||view.t==='folder');
+  document.documentElement.classList.toggle('glassv',view.t==='stats'||view.t==='lists'||view.t==='fav'||view.t==='list');
   document.querySelectorAll('nav button').forEach(b=>{
     const v=b.dataset.v;b.classList.toggle('on',v===view.t||(v==='lists'&&(view.t==='list'||view.t==='fav'))||(v==='lib'&&(view.t==='folders'||view.t==='folder')));
   });
