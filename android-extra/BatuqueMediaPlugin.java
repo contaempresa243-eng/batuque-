@@ -2,6 +2,10 @@ package com.aldair.batuque;
 
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
+import androidx.core.content.FileProvider;
+import java.io.File;
+import java.io.FileOutputStream;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
@@ -197,6 +201,64 @@ public class BatuqueMediaPlugin extends Plugin {
             } catch (Exception e) { }
         });
         call.resolve();
+    }
+
+
+    /** Partilha de texto/link: abre a janela de partilha do Android. */
+    @PluginMethod
+    public void shareText(PluginCall call) {
+        final String title = call.getString("title", "");
+        final String text = call.getString("text", "");
+        if (getActivity() == null) { call.reject("sem atividade"); return; }
+        getActivity().runOnUiThread(() -> {
+            try {
+                Intent i = new Intent(Intent.ACTION_SEND);
+                i.setType("text/plain");
+                i.putExtra(Intent.EXTRA_SUBJECT, title);
+                i.putExtra(Intent.EXTRA_TEXT, text);
+                getActivity().startActivity(Intent.createChooser(i, title));
+                call.resolve();
+            } catch (Exception e) { call.reject(String.valueOf(e.getMessage())); }
+        });
+    }
+
+    /** Recebe um ficheiro em pedaços (base64) e guarda-o na cache, pronto a partilhar. */
+    @PluginMethod
+    public void shareChunk(PluginCall call) {
+        try {
+            String name = call.getString("name", "ficheiro");
+            boolean reset = Boolean.TRUE.equals(call.getBoolean("reset", false));
+            byte[] data = Base64.decode(call.getString("data", ""), Base64.DEFAULT);
+            File dir = new File(getContext().getCacheDir(), "share");
+            if (!dir.exists()) dir.mkdirs();
+            File f = new File(dir, name.replaceAll("[\\\\/:*?\"<>|]", "_"));
+            try (FileOutputStream o = new FileOutputStream(f, !reset)) { o.write(data); }
+            call.resolve();
+        } catch (Exception e) { call.reject(String.valueOf(e.getMessage())); }
+    }
+
+    /** Abre a janela de partilha do Android com o ficheiro recebido por shareChunk. */
+    @PluginMethod
+    public void shareFile(PluginCall call) {
+        final String name = call.getString("name", "ficheiro").replaceAll("[\\\\/:*?\"<>|]", "_");
+        final String mime = call.getString("mime", "audio/*");
+        final String title = call.getString("title", "");
+        final String text = call.getString("text", "");
+        if (getActivity() == null) { call.reject("sem atividade"); return; }
+        getActivity().runOnUiThread(() -> {
+            try {
+                File f = new File(new File(getContext().getCacheDir(), "share"), name);
+                Uri u = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", f);
+                Intent i = new Intent(Intent.ACTION_SEND);
+                i.setType(mime);
+                i.putExtra(Intent.EXTRA_STREAM, u);
+                i.putExtra(Intent.EXTRA_SUBJECT, title);
+                i.putExtra(Intent.EXTRA_TEXT, text);
+                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                getActivity().startActivity(Intent.createChooser(i, title));
+                call.resolve();
+            } catch (Exception e) { call.reject(String.valueOf(e.getMessage())); }
+        });
     }
 
     @Override
