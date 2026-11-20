@@ -648,6 +648,8 @@ nav{background:var(--bgg,var(--bg));box-shadow:inset 0 1px 0 var(--gbd);border-t
 #full .qc .t{font-size:10px;margin-top:3px}
 #full .qc .a{font-size:9px}
 #full .qc .cov{width:100%;height:auto;aspect-ratio:1;border-radius:9px}
+#full .qc .cov svg{width:46%;height:46%;opacity:.95}
+#bigcov>svg{width:38%;height:38%;opacity:.95}
 #full .qc.on{opacity:1;box-shadow:none}
 #full .qc.on .t{color:var(--yel)}
 #full .qc.on .cov{outline:0}
@@ -923,7 +925,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.38.0';
+const APP_VERSION='1.39.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -1317,6 +1319,10 @@ function covURL(t){
   return u.url;
 }
 function dropCov(id){const u=covCache.get(id);if(u){URL.revokeObjectURL(u.url);covCache.delete(id);}}
+function covInnerIcon(t){
+  const u=covURL(t);
+  return u?`<img src="${u}" alt="" decoding="async">`:ic('music');
+}
 function covInner(t){
   const u=covURL(t);
   return u?`<img src="${u}" alt="" decoding="async">`:esc((t.title[0]||'♪').toUpperCase());
@@ -2356,25 +2362,54 @@ if('serviceWorker'in navigator){navigator.serviceWorker.getRegistration().then(r
 
 
 /* ---------- Carrossel de músicas (ecrã completo) ---------- */
-const qcar=$('#qcar');let qcKey='';
-function qcCenter(smooth){
-  const el=qcar.querySelector('.qc.on');if(!el||!qcar.clientWidth)return;
-  const x=el.offsetLeft-(qcar.clientWidth-el.offsetWidth)/2;
-  qcar.scrollTo({left:Math.max(0,x),behavior:smooth?'smooth':'auto'});
-}
-function renderCar(){
-  const key=queue.length+':'+qi+':'+(queue[0]||'')+':'+ctxName;
-  if(key===qcKey)return;
-  qcKey=key;
-  const from=Math.max(0,qi-40),to=Math.min(queue.length,qi+80);
-  let h='';
-  for(let i=from;i<to;i++){
-    const t=byId(queue[i]);if(!t)continue;
-    h+=`<div class="qc${i===qi?' on':''}" data-i="${i}"><div class="cov" style="${cover(t)}">${covInner(t)}</div><div class="t">${esc(t.title)}</div><div class="a">${esc(t.artist)}</div></div>`;
+const qcar=$('#qcar');let qcSig='',qcT=0;const QW=161,QM=80;
+/* carrossel infinito: janela de 161 cartões à volta da música atual, com a fila a dar a volta; recentra-se quando o dedo chega perto dos bordos */
+const qcCard=(i,t,mid)=>`<div class="qc${i===qi?' on':''}${mid?' mid':''}" data-i="${i}"><div class="cov" style="${cover(t)}">${covInnerIcon(t)}</div><div class="t">${esc(t.title)}</div><div class="a">${esc(t.artist)}</div></div>`;
+function qcBuild(c){
+  const n=queue.length;let h='';
+  if(!n){qcar.innerHTML='';return;}
+  for(let k=0;k<QW;k++){
+    const i=(((c-QM+k)%n)+n)%n,t=byId(queue[i]);if(!t)continue;
+    h+=qcCard(i,t,k===QM);
   }
   qcar.innerHTML=h;
+}
+function qcScrollTo(el,smooth){
+  if(!el||!qcar.clientWidth)return;
+  qcar.scrollTo({left:Math.max(0,el.offsetLeft-(qcar.clientWidth-el.offsetWidth)/2),behavior:smooth?'smooth':'auto'});
+}
+function qcCenter(smooth){qcScrollTo(qcar.querySelector('.qc.mid')||qcar.querySelector('.qc.on'),smooth);}
+function renderCar(){
+  const sig=queue.length+':'+(queue[0]||'')+':'+ctxName;
+  if(sig===qcSig&&qcar.childElementCount){
+    /* a mesma fila: só muda o cartão ativo, e a faixa desliza até ele */
+    const els=[...qcar.children].filter(e=>+e.dataset.i===qi);
+    if(els.length){
+      const mid=qcar.scrollLeft+qcar.clientWidth/2;
+      els.sort((x,y)=>Math.abs(x.offsetLeft+x.offsetWidth/2-mid)-Math.abs(y.offsetLeft+y.offsetWidth/2-mid));
+      qcar.querySelectorAll('.qc.on').forEach(e=>e.classList.remove('on'));
+      els.forEach(e=>e.classList.add('on'));
+      qcScrollTo(els[0],true);
+      return;
+    }
+  }
+  qcSig=sig;
+  qcBuild(qi);
   requestAnimationFrame(()=>qcCenter(false));
 }
+qcar.addEventListener('scroll',()=>{
+  clearTimeout(qcT);
+  qcT=setTimeout(()=>{
+    const ch=qcar.children;if(ch.length<3||!queue.length)return;
+    const step=ch[1].offsetLeft-ch[0].offsetLeft||80,w=ch[0].offsetWidth;
+    const k=Math.max(0,Math.min(ch.length-1,Math.round((qcar.scrollLeft+(qcar.clientWidth-w)/2-ch[0].offsetLeft)/step)));
+    if(k>=25&&k<=ch.length-26)return;
+    const el=ch[k],c=+el.dataset.i,off=el.offsetLeft-qcar.scrollLeft;
+    qcBuild(c);
+    const mid=qcar.querySelector('.qc.mid');
+    if(mid)qcar.scrollTo({left:mid.offsetLeft-off,behavior:'auto'});
+  },110);
+},{passive:true});
 qcar.addEventListener('click',e=>{
   const x=e.target.closest('.qc');if(!x)return;
   const i=+x.dataset.i;if(i===qi)return;
@@ -4040,7 +4075,7 @@ function updateUI(){
     if(!mini.classList.contains('drag'))placeMini();
     $('#mplay').onclick=toggle;$('#mnext').onclick=()=>next(false);$('#mprev').onclick=prev;$('#marr').onclick=miniCollapse;
     $('#ft').textContent=t.title;$('#fa').textContent=t.artist;
-    $('#bigcov').style.background=cover(t).replace(/^background:/,'');$('#bigcov').innerHTML=covInner(t);
+    $('#bigcov').style.background=cover(t).replace(/^background:/,'');$('#bigcov').innerHTML=covInnerIcon(t);
     const bu=covURL(t);
     applyFbg();
     $('#tfav').className='ib'+(t.fav?' on':'');$('#tfav').innerHTML=ic(t.fav?'heart':'heartO',26);renderCar();
