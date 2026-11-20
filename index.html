@@ -630,7 +630,10 @@ header{position:relative}
 
 /* ---------- Vidro: o tema aplica-se a toda a app ---------- */
 html,body,#settings,#mixed,#dj,#lyrics{background-color:var(--bg);background-image:var(--gbg,none);background-attachment:fixed}
-.search,.lcard,.fcard,.srow,.pal,.cs,.st-card,.st-row,.st-box,.st-hint,.mxi,.dk,.lpl,.ltr,.cebox,#selg,#sela,nav,#sheet .box,#dlg .dbox,#linfo .ib2,#mxprog .pb{-webkit-backdrop-filter:blur(14px) saturate(1.25);backdrop-filter:blur(14px) saturate(1.25);box-shadow:inset 0 0 0 1px var(--gbd)}
+.lcard,.fcard,.srow,.pal,.cs,.st-card,.st-row,.st-box,.st-hint,.mxi,.dk,.lpl,.ltr,.cebox,#selg,#sela{box-shadow:inset 0 0 0 1px var(--gbd)}
+/* o desfoque só nas camadas grandes: muitos cartões com desfoque numa lista longa deixam o WebView sem desenhar os últimos */
+.search,nav,#sheet .box,#dlg .dbox,#linfo .ib2,#mxprog .pb{-webkit-backdrop-filter:blur(14px) saturate(1.25);backdrop-filter:blur(14px) saturate(1.25);box-shadow:inset 0 0 0 1px var(--gbd)}
+main{overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding-bottom:150px}
 nav{background:var(--bgg,var(--bg));box-shadow:inset 0 1px 0 var(--gbd);border-top:0}
 #sheet .box,#dlg .dbox,#linfo .ib2,.cebox{background:var(--cardx,var(--card))}
 #dlg .dbox{box-shadow:inset 0 0 0 1px var(--gbd),0 18px 50px #0008}
@@ -920,7 +923,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.37.1';
+const APP_VERSION='1.37.2';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
