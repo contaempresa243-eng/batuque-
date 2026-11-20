@@ -923,7 +923,7 @@ const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/6
 let toastT;const toast=(m,ms)=>{const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms||1800);};
 
 /* ---------- Definições e tema ---------- */
-const APP_VERSION='1.37.2';
+const APP_VERSION='1.38.0';
 const APP_INFO={created:'Outubro de 2026',place:'Angola'};
 /* Ecrã «Sobre o Batuque»: edita aqui o teu nome, contactos e links */
 const ABOUT={
@@ -1622,7 +1622,12 @@ async function importFiles(list){
     const key=dupKey(fname,fsize),dup=have.get(key);
     if(dup){
       /* já existe: não duplica; só arruma no caminho completo se vier de uma pasta */
-      if(folder&&dup.folder!==folder&&(!dup.folder||folder.startsWith(dup.folder+'/')||folder.split('/').pop()===dup.folder||folder.includes('/'))){try{dup.folder=folder;await tx('tracks','readwrite',s=>s.put(dup));moved++;}catch(e){}}
+      if(folder&&dup.folder!==folder){
+        try{
+          if(!dup.folder||folder.startsWith(dup.folder+'/')||folder.split('/').pop()===dup.folder){dup.folder=folder;await tx('tracks','readwrite',s=>s.put(dup));moved++;}
+          else if(!(dup.alt||[]).includes(folder)){dup.alt=[...(dup.alt||[]),folder];await tx('tracks','readwrite',s=>s.put(dup));moved++;}
+        }catch(e){}
+      }
       skip++;continue;
     }
     try{
@@ -1753,7 +1758,11 @@ async function libImport(files,chosen,silent){
   const sel=new Set(chosen);
   const have=new Set(tracks.filter(t=>t.fname&&t.blob).flatMap(t=>[dupKey(t.fname,t.blob.size),dupKey(t.fname,t.psize||t.blob.size)]));
   const fresh=files.filter(f=>sel.has(f.folder)&&!have.has(dupKey(f.name,f.size)));
-  if(!fresh.length){if(!silent)toast('A biblioteca já está em dia',2800);return 0;}
+  /* a mesma música noutra pasta do telefone (ex.: «Todos» e a pasta do artista): fica nas duas pastas, sem copiar outra vez */
+  const byK=new Map();tracks.forEach(t=>{if(t.fname&&t.blob){byK.set(dupKey(t.fname,t.blob.size),t);byK.set(dupKey(t.fname,t.psize||t.blob.size),t);}});
+  const extra=files.filter(f=>{if(!sel.has(f.folder))return false;const t=byK.get(dupKey(f.name,f.size));return t&&!tFolders(t).includes(f.folder);});
+  if(extra.length){await importFiles(extra.map(f=>apkEntry(f,true)));}
+  if(!fresh.length){if(!silent&&!extra.length)toast('A biblioteca já está em dia',2800);return 0;}
   const gb=fresh.reduce((a,f)=>a+(f.size||0),0);
   const ok=await dlg({title:silent?'Músicas novas no telefone':'Importar músicas',msg:'Encontrei '+fresh.length+(fresh.length>1?' músicas novas':' música nova')+' ('+fmtSize(gb)+').\nAs músicas são copiadas para dentro do Batuque.\nImportar agora?',ok:'Importar',cancel:'Agora não',icon:'folder'});
   if(!ok)return 0;
@@ -1830,7 +1839,7 @@ function visible(){
   let arr;
   if(view.t==='fav')arr=tracks.filter(t=>t.fav);
   else if(view.t==='list'){const l=lists.find(x=>x.id===view.id);arr=(l?l.ids:[]).map(byId).filter(Boolean);}
-  else if(view.t==='folder')arr=tracks.filter(t=>(t.folder||'')===view.name);
+  else if(view.t==='folder')arr=tracks.filter(t=>tFolders(t).includes(view.name));
   else arr=tracks;
   const q=search.toLowerCase();
   arr=ordered(arr);
@@ -2090,14 +2099,20 @@ async function newList(){
 const folderName=k=>k===''?'Outras músicas':String(k).split('/').pop();
 const folderPath=k=>k===''?'Outras músicas':String(k).split('/').join(' › ');
 const parentFolder=k=>{const i=String(k).lastIndexOf('/');return i<0?null:String(k).slice(0,i);};
+/* uma música pode estar em várias pastas (ex.: «Todos» e a pasta do artista): t.folder é a principal, t.alt as outras */
+const tFolders=t=>[t.folder||'',...(t.alt||[])];
 const inFolder=(f,k)=>f===k||(k!==''&&String(f||'').startsWith(k+'/'));
 /* pastas diretamente dentro de prefix ('' = raiz); os totais incluem as subpastas */
 function subFolders(prefix){
   const g=new Map(),p=prefix?prefix+'/':'';
   tracks.forEach(t=>{
-    const f=t.folder||'';if(!f||f===prefix||!f.startsWith(p))return;
-    const k=p+f.slice(p.length).split('/')[0];
-    const e=g.get(k)||{n:0,sz:0};e.n++;e.sz+=t.blob.size;g.set(k,e);
+    const seen=new Set();
+    tFolders(t).forEach(f=>{
+      if(!f||f===prefix||!f.startsWith(p))return;
+      const k=p+f.slice(p.length).split('/')[0];
+      if(seen.has(k))return;seen.add(k);
+      const e=g.get(k)||{n:0,sz:0};e.n++;e.sz+=t.blob.size;g.set(k,e);
+    });
   });
   return g;
 }
@@ -2111,13 +2126,17 @@ function folderCards(arr){
   return fgrid?'<div class="fgl">'+arr.map(one).join('')+'</div>':arr.map(one).join('');
 }
 function folderMenu(){
-  const ids=tracks.filter(t=>inFolder(t.folder||'',view.name)).map(t=>t.id);
+  const here=tracks.filter(t=>tFolders(t).some(f=>inFolder(f,view.name)));
+  /* só apaga as músicas que não estão noutra pasta; as outras apenas saem desta */
+  const ids=here.filter(t=>tFolders(t).every(f=>inFolder(f,view.name))).map(t=>t.id);
   const hasSubs=view.name!==''&&subFolders(view.name).size>0;
   sheet(folderName(view.name),[
     {label:'Apagar '+(hasSubs?'esta pasta e as subpastas':'as músicas desta pasta')+' ('+ids.length+')',danger:true,fn:async()=>{
-      if(!ids.length||!await askOk('Apagar pasta','Apagar '+ids.length+(ids.length>1?' músicas':' música')+' da pasta "'+folderName(view.name)+'"'+(hasSubs?' e das suas subpastas':'')+' da biblioteca?\nEsta ação não pode ser desfeita.','Apagar',true))return;
+      if(!here.length||!await askOk('Apagar pasta','Apagar '+ids.length+(ids.length>1?' músicas':' música')+' da pasta "'+folderName(view.name)+'"'+(hasSubs?' e das suas subpastas':'')+' da biblioteca?\nEsta ação não pode ser desfeita.','Apagar',true))return;
       const pf=parentFolder(view.name);
-      await delTracks(ids);view=(pf!==null&&tracks.some(t=>inFolder(t.folder||'',pf)))?{t:'folder',name:pf}:{t:'folders'};render();toast('Pasta apagada');
+      for(const t of here){if(ids.includes(t.id))continue;const rest=tFolders(t).filter(f=>!inFolder(f,view.name));t.folder=rest[0]||'';t.alt=rest.slice(1);await tx('tracks','readwrite',s=>s.put(t));}
+      if(ids.length)await delTracks(ids);else await load();
+      view=(pf!==null&&tracks.some(t=>tFolders(t).some(f=>inFolder(f,pf))))?{t:'folder',name:pf}:{t:'folders'};render();toast('Pasta apagada');
     }}
   ]);
 }
